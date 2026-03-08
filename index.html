@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>TAO Monte Carlo — Bittensor Price Simulator</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080c16" id="themeColorMeta">
+<meta name="application-name" content="TAO Monte Carlo">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080c16;--card:#0d1424;--card2:#111b2e;--border:#1a2744;--surface:#141e36;
+  --tau:#00d4aa;--tau-dim:rgba(0,212,170,.1);--tau-med:rgba(0,212,170,.25);
+  --blue:#4d9bf7;--blue-dim:rgba(77,155,247,.1);
+  --red:#f05454;--red-dim:rgba(240,84,84,.1);
+  --amber:#f0a830;--amber-dim:rgba(240,168,48,.1);
+  --purple:#9b6dff;--purple-dim:rgba(155,109,255,.1);
+  --text:#e4eaf4;--text2:#8899b4;--text3:#506080;
+  --green:#22c983;--green-dim:rgba(34,201,131,.1);
+}
+[data-theme="light"]{
+  --bg:#f4f6fa;--card:#fff;--card2:#f0f2f8;--border:#dde2ee;--surface:#eaecf4;
+  --tau:#009e7e;--tau-dim:rgba(0,158,126,.08);--tau-med:rgba(0,158,126,.18);
+  --blue:#2b6ce6;--blue-dim:rgba(43,108,230,.07);
+  --red:#dc3545;--red-dim:rgba(220,53,69,.07);
+  --amber:#c88500;--amber-dim:rgba(200,133,0,.07);
+  --purple:#6d3fcc;--purple-dim:rgba(109,63,204,.07);
+  --text:#1a1f2e;--text2:#4a5568;--text3:#8793a6;
+  --green:#16a368;--green-dim:rgba(22,163,104,.07);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;height:100%;overflow:hidden;display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent;padding-top:env(safe-area-inset-top)}
+.hdr{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg)}
+.hdr h1{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--tau);flex:1;letter-spacing:-.5px}
+.hdr .sub{font-size:10px;color:var(--text3);letter-spacing:.3px}
+.theme-btn{width:36px;height:22px;border-radius:11px;border:none;background:var(--surface);cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0}
+.theme-btn .dot{width:18px;height:18px;border-radius:50%;background:var(--tau);font-size:10px;display:flex;align-items:center;justify-content:center;transition:.2s}
+[data-theme="light"] .theme-btn .dot{transform:translateX(14px)}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
+.wrap{max-width:700px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.card-t{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--tau);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.col{flex:1;min-width:120px}
+.lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:600}
+select,input[type=number]{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;outline:none}
+select:focus,input[type=number]:focus{border-color:var(--tau)}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;background:var(--surface);outline:none;cursor:pointer;margin:6px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--bg);border:2px solid var(--tau);cursor:pointer}
+.btn{padding:10px 20px;border:none;border-radius:8px;background:var(--tau);color:#000;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:.15s;min-height:44px;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn:hover{opacity:.9}
+.btn-ghost{background:var(--surface);color:var(--text2);border:1px solid var(--border)}
+.scenario-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-bottom:14px}
+.scenario-pill{padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;text-align:left;transition:.15s;font-family:inherit}
+.scenario-pill:active{transform:scale(.97)}
+.scenario-pill.active{border-color:var(--tau);background:var(--tau-dim)}
+.scenario-pill .ico{font-size:16px}
+.scenario-pill .nm{font-size:11px;font-weight:700;color:var(--text);margin-top:2px}
+.scenario-pill.active .nm{color:var(--tau)}
+.scenario-pill .ds{font-size:9px;color:var(--text3);line-height:1.3;margin-top:2px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.stat{text-align:center;flex:1;min-width:80px;background:var(--card2);border-radius:8px;padding:10px 6px}
+.stat .k{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.stat .v{font-size:17px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
+.stat .s{font-size:9px;color:var(--text3);margin-top:3px}
+.canvas-wrap{position:relative;width:100%;height:220px;margin:10px 0;border-radius:8px;overflow:hidden;background:var(--card2)}
+canvas{display:block;width:100%;height:100%}
+.legend{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.legend span{font-size:9px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.legend .dot{width:8px;height:8px;border-radius:50%}
+.pct-bar{height:6px;border-radius:3px;background:var(--surface);margin:6px 0;overflow:hidden}
+.pct-bar .fill{height:100%;border-radius:3px;transition:width .4s}
+.note{font-size:10px;color:var(--text3);line-height:1.6;margin-top:10px;padding:10px 12px;background:var(--surface);border-radius:8px}
+.note b{color:var(--text2)}
+.subnet-list{max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:12px}
+.subnet-item{padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;display:flex;justify-content:space-between;transition:.1s}
+.subnet-item:last-child{border-bottom:none}
+.subnet-item:hover,.subnet-item.active{background:var(--tau-dim)}
+.subnet-item.active{color:var(--tau);font-weight:700}
+.subnet-item .pr{font-family:'JetBrains Mono',monospace;color:var(--text2);font-size:11px}
+@media(max-width:500px){.scenario-grid{grid-template-columns:1fr 1fr}.stats{gap:6px}.stat .v{font-size:14px}.canvas-wrap{height:180px}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <h1>τ Monte Carlo</h1>
+    <div class="sub">Bittensor Price Simulation Engine</div>
+  </div>
+  <button class="theme-btn" onclick="toggleTheme()"><div class="dot" id="themeD">🌙</div></button>
+</div>
+
+<div class="main">
+<div class="wrap">
+
+<!-- TOKEN SELECT -->
+<div class="card">
+  <div class="card-t">📡 Select Token</div>
+  <div class="row">
+    <div class="col">
+      <div class="lbl">Token</div>
+      <select id="tokenSelect" onchange="onTokenChange()">
+        <option value="TAO" selected>TAO (Bittensor)</option>
+        <optgroup label="Top Subnets (by value)">
+          <option value="SN64">SN64 — Chutes (Serverless AI Compute)</option>
+          <option value="SN51">SN51 — Lium (GPU Marketplace)</option>
+          <option value="SN62">SN62 — Ridges AI (Agent Training)</option>
+          <option value="SN4">SN4 — Targon (Multimodal Compute)</option>
+          <option value="SN9">SN9 — IOTA (Pretraining LLMs)</option>
+          <option value="SN8">SN8 — Vanta (Prop Trading Signals)</option>
+          <option value="SN13">SN13 — Data Universe (Data Storage)</option>
+          <option value="SN56">SN56 — Gradients (AI Training)</option>
+          <option value="SN12">SN12 — ComputeHorde (GPU Compute)</option>
+          <option value="SN1">SN1 — Apex (LLM Inference)</option>
+        </optgroup>
+        <optgroup label="AI / ML Subnets">
+          <option value="SN2">SN2 — DSperse (ZK Proving)</option>
+          <option value="SN3">SN3 — Templar (Distributed Training)</option>
+          <option value="SN5">SN5 — Hone (AGI Reasoning)</option>
+          <option value="SN6">SN6 — Numinous (Forecasting)</option>
+          <option value="SN21">SN21 — Any-to-Any (Multimodal AI)</option>
+          <option value="SN22">SN22 — Desearch (AI Search)</option>
+          <option value="SN24">SN24 — Quasar (Infinite Memory LLM)</option>
+          <option value="SN25">SN25 — Mainframe (Protein Folding)</option>
+          <option value="SN29">SN29 — AI-ASSeSS (Model Training)</option>
+          <option value="SN33">SN33 — ReadyAI (Dialogue Data)</option>
+          <option value="SN34">SN34 — BitMind (AI Image Detection)</option>
+          <option value="SN36">SN36 — Web Agents (Web Automation)</option>
+          <option value="SN37">SN37 — Aurelius (AI Alignment)</option>
+          <option value="SN40">SN40 — Chunking (RAG)</option>
+          <option value="SN52">SN52 — Dojo (AI Training Data)</option>
+          <option value="SN59">SN59 — BabelBit (Speech Translation)</option>
+          <option value="SN70">SN70 — Vericore (Fact-Checking)</option>
+          <option value="SN81">SN81 — Grail (Distributed Training)</option>
+          <option value="SN82">SN82 — Hermes (GraphQL AI)</option>
+          <option value="SN83">SN83 — CliqueAI (Graph Problems)</option>
+          <option value="SN94">SN94 — Bitsota (Model Search)</option>
+          <option value="SN100">SN100 — Platform (AI Research)</option>
+          <option value="SN117">SN117 — BrainPlay (AI Game Benchmark)</option>
+          <option value="SN120">SN120 — Affine (Reinforcement Learning)</option>
+          <option value="SN121">SN121 — sundae_bar (AI Agent Market)</option>
+          <option value="SN122">SN122 — Bitrecs (AI Recommendations)</option>
+        </optgroup>
+        <optgroup label="Compute / Infrastructure">
+          <option value="SN7">SN7 — SubVortex (Infrastructure)</option>
+          <option value="SN27">SN27 — Nodexo (GPU Cloud)</option>
+          <option value="SN39">SN39 — Basilica (GPU Marketplace)</option>
+          <option value="SN48">SN48 — Quantum Compute</option>
+          <option value="SN63">SN63 — Quantum Innovate</option>
+          <option value="SN65">SN65 — TAO Private Network (VPN)</option>
+          <option value="SN66">SN66 — AlphaCore (DevOps Agents)</option>
+          <option value="SN75">SN75 — Hippius (Cloud Storage)</option>
+          <option value="SN84">SN84 — ChipForge (Chip Design)</option>
+          <option value="SN85">SN85 — Vidaio (Video Processing)</option>
+          <option value="SN91">SN91 — Tensorprox (DDoS Mitigation)</option>
+          <option value="SN97">SN97 — FlameWire (RPC Gateway)</option>
+          <option value="SN128">SN128 — ByteLeap (Cloud AI)</option>
+        </optgroup>
+        <optgroup label="DeFi / Finance">
+          <option value="SN10">SN10 — Swap (Cross-chain DEX)</option>
+          <option value="SN35">SN35 — Cartha (Liquidity Engine)</option>
+          <option value="SN50">SN50 — Synth (Synthetic Price Data)</option>
+          <option value="SN53">SN53 — Efficient Frontier (Trading)</option>
+          <option value="SN67">SN67 — Tenex (Margin Trading)</option>
+          <option value="SN77">SN77 — Liquidity (LP Incentives)</option>
+          <option value="SN79">SN79 — τaos (Financial Simulation)</option>
+          <option value="SN88">SN88 — Investing (Staking Strategies)</option>
+          <option value="SN98">SN98 — Forever Money (Liquidity Mgr)</option>
+          <option value="SN106">SN106 — Liquidity Provisioning</option>
+          <option value="SN112">SN112 — Minotaur (DEX Aggregator)</option>
+          <option value="SN113">SN113 — TensorUSD</option>
+          <option value="SN116">SN116 — TaoLend (Lending)</option>
+          <option value="SN118">SN118 — HODL ETF (Index Staking)</option>
+        </optgroup>
+        <optgroup label="Prediction / Data">
+          <option value="SN15">SN15 — BitQuant (Crypto Analysis)</option>
+          <option value="SN30">SN30 — Wahoot (Prediction Market)</option>
+          <option value="SN41">SN41 — Almanac (Sports Intelligence)</option>
+          <option value="SN42">SN42 — Gopher (Data Scraping)</option>
+          <option value="SN44">SN44 — Score (Football Predictions)</option>
+          <option value="SN45">SN45 — Talisman AI (Crypto Signals)</option>
+          <option value="SN57">SN57 — Sparket (Sports Predictions)</option>
+          <option value="SN103">SN103 — Djinn (Sports Signals)</option>
+          <option value="SN123">SN123 — MANTIS (Financial Forecasting)</option>
+        </optgroup>
+        <optgroup label="Security / Verification">
+          <option value="SN23">SN23 — Trishool (AI Safety)</option>
+          <option value="SN32">SN32 — It's AI (AI Detection)</option>
+          <option value="SN54">SN54 — MIID (Synthetic Identity)</option>
+          <option value="SN60">SN60 — Bitsec (Code Security)</option>
+          <option value="SN61">SN61 — RedTeam (Cybersecurity)</option>
+        </optgroup>
+        <optgroup label="Mining / Blockchain">
+          <option value="SN14">SN14 — TAO Hash (BTC Mining)</option>
+          <option value="SN73">SN73 — MetaHash (ALPHA→META Swap)</option>
+          <option value="SN80">SN80 — Dogelayer (DOGE Mining)</option>
+          <option value="SN89">SN89 — InfiniteHash (BTC Pool)</option>
+        </optgroup>
+        <optgroup label="Creative / Media / Other">
+          <option value="SN16">SN16 — BitAds (Advertising)</option>
+          <option value="SN17">SN17 — Gen 404 (3D Worlds)</option>
+          <option value="SN18">SN18 — Zeus (Environment Forecast)</option>
+          <option value="SN20">SN20 — Bounty Hunter (AI Bounties)</option>
+          <option value="SN26">SN26 — Kinitro (Robotics)</option>
+          <option value="SN43">SN43 — Graphite (Graph Problems)</option>
+          <option value="SN46">SN46 — RESI (Real Estate Data)</option>
+          <option value="SN58">SN58 — Handshake (Agent Payments)</option>
+          <option value="SN68">SN68 — NOVA (Drug Discovery)</option>
+          <option value="SN71">SN71 — Leadpoet (Sales Leads)</option>
+          <option value="SN72">SN72 — StreetVision (Mapping)</option>
+          <option value="SN74">SN74 — Gittensor (Open Source)</option>
+          <option value="SN76">SN76 — Safe Scan (Cancer Screening)</option>
+          <option value="SN78">SN78 — Loosh (Machine Consciousness)</option>
+          <option value="SN93">SN93 — Bitcast (Creator Rewards)</option>
+          <option value="SN96">SN96 — FLOCK OFF (Edge AI Data)</option>
+          <option value="SN111">SN111 — oneoneone (Web Content)</option>
+          <option value="SN124">SN124 — Swarm (Autonomous Drones)</option>
+        </optgroup>
+        <optgroup label="Other / New / Unknown">
+          <option value="SN11">SN11 — TrajectoryRL</option>
+          <option value="SN19">SN19 — blockmachine</option>
+          <option value="SN28">SN28 — Subnet 28</option>
+          <option value="SN31">SN31 — Halftime</option>
+          <option value="SN38">SN38 — Colosseum</option>
+          <option value="SN47">SN47 — EvolAI</option>
+          <option value="SN49">SN49 — Nepher</option>
+          <option value="SN55">SN55 — Niome</option>
+          <option value="SN69">SN69 — Subnet 69</option>
+          <option value="SN86">SN86 — Subnet 86</option>
+          <option value="SN87">SN87 — Luminar</option>
+          <option value="SN90">SN90 — Subnet 90</option>
+          <option value="SN92">SN92 — LUCID</option>
+          <option value="SN95">SN95 — Subnet 95</option>
+          <option value="SN99">SN99 — Problems</option>
+          <option value="SN101">SN101 — Subnet 101</option>
+          <option value="SN102">SN102 — ViewCast</option>
+          <option value="SN104">SN104 — Subnet 104</option>
+          <option value="SN105">SN105 — Subnet 105</option>
+          <option value="SN107">SN107 — Minos</option>
+          <option value="SN108">SN108 — TalkHead</option>
+          <option value="SN109">SN109 — Subnet 109</option>
+          <option value="SN110">SN110 — Rich Kids of TAO</option>
+          <option value="SN114">SN114 — SOMA</option>
+          <option value="SN115">SN115 — HashiChain</option>
+          <option value="SN119">SN119 — Satori</option>
+          <option value="SN125">SN125 — 8 Ball</option>
+          <option value="SN126">SN126 — Tiger Beta</option>
+          <option value="SN127">SN127 — Astrid</option>
+        </optgroup>
+        <optgroup label="Custom">
+          <option value="CUSTOM">Custom Token / Price</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="col">
+      <div class="lbl">Current Price ($)</div>
+      <input type="number" id="priceInput" value="185" step="0.01" oninput="updateUI()">
+    </div>
+  </div>
+  <div id="tokenInfo" style="font-size:10px;color:var(--text3);line-height:1.5"></div>
+</div>
+
+<!-- SCENARIO -->
+<div class="card">
+  <div class="card-t">🎯 Scenario</div>
+  <div class="note" style="margin-bottom:12px;background:var(--tau-dim);border-left:3px solid var(--tau)">
+    <b style="color:var(--tau)">💡 How to read this:</b> A Monte Carlo simulation runs thousands of random price paths based on the volatility and drift you set. Think of it like rolling dice thousands of times to see the range of possible outcomes — not a prediction, but a probability map.
+  </div>
+  <div class="scenario-grid" id="scenGrid"></div>
+  <div class="row">
+    <div class="col">
+      <div class="lbl">Time Horizon</div>
+      <select id="horizon" onchange="updateUI()">
+        <option value="90">3 Months</option>
+        <option value="180">6 Months</option>
+        <option value="365" selected>1 Year</option>
+        <option value="730">2 Years</option>
+        <option value="1095">3 Years</option>
+        <option value="1825">5 Years</option>
+      </select>
+    </div>
+    <div class="col">
+      <div class="lbl">Simulations</div>
+      <select id="simCount" onchange="updateUI()">
+        <option value="500">500 (Fast)</option>
+        <option value="2000" selected>2,000</option>
+        <option value="5000">5,000</option>
+        <option value="10000">10,000 (Slow)</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="lbl">Annual Volatility (%)
+        <span style="cursor:help;color:var(--tau)" title="How wildly the price swings. Higher = bigger ups AND downs. BTC is ~65%, TAO is ~120%. Think of it as how bumpy the ride is.">ⓘ</span>
+      </div>
+      <input type="range" id="volSlider" min="30" max="250" value="120" oninput="updateUI()">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3)"><span>30% (S&P 500)</span><span id="volVal" style="color:var(--tau);font-weight:700">120%</span><span>250% (Extreme)</span></div>
+    </div>
+    <div class="col">
+      <div class="lbl">Annual Drift (%)
+        <span style="cursor:help;color:var(--tau)" title="The expected average trend direction per year. +30% means you expect the price to trend up 30%/year on average. 0% = no directional bias. Negative = bearish expectation.">ⓘ</span>
+      </div>
+      <input type="range" id="driftSlider" min="-80" max="200" value="0" oninput="updateUI()">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3)"><span>-80% Bear</span><span id="driftVal" style="color:var(--tau);font-weight:700">0%</span><span>+200% Bull</span></div>
+    </div>
+  </div>
+  <div style="margin:10px 0;display:flex;align-items:center;gap:8px">
+    <input type="checkbox" id="btcOverlay" checked style="accent-color:var(--amber);width:16px;height:16px">
+    <label for="btcOverlay" style="font-size:11px;color:var(--text2);cursor:pointer">Overlay BTC simulation for comparison <span style="color:var(--amber)">(~65% vol, ~30% drift)</span></label>
+  </div>
+  <div style="text-align:center;margin-top:8px">
+    <button class="btn" onclick="runSimulation()">▶ Run Simulation</button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="card" id="resultsCard" style="display:none">
+  <div class="card-t">📊 Simulation Results</div>
+  <div class="note" style="margin-bottom:12px" id="percentileExplainer">
+    <b>📖 Reading percentiles:</b> If the <b style="color:var(--red)">5th percentile</b> shows $50, that means only 5% of simulations ended below $50 — this is your <b>worst-case floor</b>. The <b style="color:var(--tau)">50th (median)</b> is the middle outcome — half ended above, half below. The <b style="color:var(--green)">95th percentile</b> is the best 5% of outcomes — your <b>moon scenario</b>.
+  </div>
+  <div class="stats" id="resultStats"></div>
+  <div class="canvas-wrap"><canvas id="simCanvas"></canvas></div>
+  <div class="legend" id="chartLegend">
+    <span><span class="dot" style="background:var(--red)"></span>5th Pctl (Worst 5%)</span>
+    <span><span class="dot" style="background:var(--amber)"></span>25th Pctl (Pessimistic)</span>
+    <span><span class="dot" style="background:var(--tau)"></span>50th Pctl (Median)</span>
+    <span><span class="dot" style="background:var(--blue)"></span>75th Pctl (Optimistic)</span>
+    <span><span class="dot" style="background:var(--green)"></span>95th Pctl (Best 5%)</span>
+  </div>
+  <div id="btcLegend" style="text-align:center;margin-top:4px;font-size:9px;color:var(--text3)"></div>
+</div>
+
+<!-- DISTRIBUTION -->
+<div class="card" id="distCard" style="display:none">
+  <div class="card-t">📈 Price Distribution at End</div>
+  <div class="canvas-wrap" style="height:160px"><canvas id="distCanvas"></canvas></div>
+  <div class="stats" id="distStats"></div>
+  <div id="distBars"></div>
+</div>
+
+<!-- PROBABILITY -->
+<div class="card" id="probCard" style="display:none">
+  <div class="card-t">🎲 Probability Analysis</div>
+  <div class="note" style="margin-bottom:12px;background:var(--blue-dim);border-left:3px solid var(--blue)">
+    <b style="color:var(--blue)">📖 What do these probabilities mean?</b> If "2x" shows 35%, it means 35 out of every 100 simulated price paths ended at or above double your starting price. Higher % = more likely in the model. Remember: this is based on the volatility and drift YOU set — different assumptions give different odds.
+  </div>
+  <div id="probContent"></div>
+  <div id="btcProbContent" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:10px">₿ Bitcoin Comparison Probabilities</div>
+    <div id="btcProbBars"></div>
+  </div>
+  <div class="note" style="margin-top:12px">
+    <b>⚠️ Important:</b> This is a mathematical simulation for educational purposes only. It uses Geometric Brownian Motion (GBM), the same model used in options pricing. Real crypto prices are influenced by regulation, technology adoption, market sentiment, black swan events, and factors no model can capture. Past volatility does not predict future results. This is <b>NOT</b> financial advice. Always DYOR.
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+//  THEME
+// ============================================================
+function toggleTheme(){
+  const h=document.documentElement,l=h.getAttribute('data-theme')==='light';
+  h.setAttribute('data-theme',l?'dark':'light');
+  document.getElementById('themeD').textContent=l?'🌙':'☀️';
+  document.getElementById('themeColorMeta').content=l?'#080c16':'#f4f6fa';
+  localStorage.setItem('tao-mc-theme',l?'dark':'light');
+}
+(function(){const s=localStorage.getItem('tao-mc-theme');if(s==='light'){document.documentElement.setAttribute('data-theme','light');document.getElementById('themeColorMeta').content='#f4f6fa';setTimeout(()=>{document.getElementById('themeD').textContent='☀️'},0)}})();
+
+// ============================================================
+//  TOKEN DATA
+// ============================================================
+const TOKENS={
+  TAO:{name:'Bittensor (TAO)',price:185,vol:120,ath:760,atl:31,mcap:'$2B',circ:'10.7M',max:'21M',info:'The native token of Bittensor. Powers the decentralized AI network. Post-halving emission: ~3,600 TAO/day. 128 active subnets.'},
+  SN64:{name:'Chutes (SN64)',price:9.20,vol:155,ath:28,atl:0.5,mcap:'~$98M',circ:'-',max:'-',info:'#1 subnet by value. Serverless AI compute at scale. Deploy, run, and scale AI models via API.'},
+  SN51:{name:'Lium (SN51)',price:3.80,vol:165,ath:12,atl:0.2,mcap:'~$40M',circ:'-',max:'-',info:'Decentralized GPU rental platform. Rent NVIDIA GPUs by the hour for AI workloads.'},
+  SN62:{name:'Ridges AI (SN62)',price:4.50,vol:170,ath:15,atl:0.3,mcap:'~$45M',circ:'-',max:'-',info:'Leader in agent training on Bittensor. 3rd largest subnet by value. Backed by Stillcore Capital.'},
+  SN4:{name:'Targon (SN4)',price:2.10,vol:160,ath:8,atl:0.1,mcap:'~$22M',circ:'-',max:'-',info:'Multimodal compute subnet by Manifold Labs. Integrates text, images, audio. Has its own VM (TVM).'},
+  SN9:{name:'IOTA (SN9)',price:2.50,vol:165,ath:9,atl:0.1,mcap:'~$25M',circ:'-',max:'-',info:'Pre-training subnet by Macrocosmos. Rewards miners for producing pretrained foundation models.'},
+  SN8:{name:'Vanta (SN8)',price:1.80,vol:170,ath:6,atl:0.05,mcap:'~$18M',circ:'-',max:'-',info:'Decentralized prop trading subnet by Taoshi. Crowdsources AI-driven trading strategies.'},
+  SN13:{name:'Data Universe (SN13)',price:1.00,vol:170,ath:4,atl:0.02,mcap:'~$10M',circ:'-',max:'-',info:'By Macrocosmos. Decentralizes and scales data storage for Bittensor AI training.'},
+  SN56:{name:'Gradients (SN56)',price:1.40,vol:170,ath:5,atl:0.03,mcap:'~$14M',circ:'-',max:'-',info:'By Rayon Labs. Simplifies AI training, making it accessible through decentralized network.'},
+  SN12:{name:'ComputeHorde (SN12)',price:1.60,vol:165,ath:6,atl:0.05,mcap:'~$16M',circ:'-',max:'-',info:'Decentralized trusted GPU compute network. Empowers validators with on-demand scalable AI validation.'},
+  SN1:{name:'Apex (SN1)',price:1.80,vol:155,ath:6,atl:0.05,mcap:'~$18M',circ:'-',max:'-',info:'By Macrocosmos. Improves LLM inference by incentivizing agentic workflows and fine-tuning data at scale.'},
+  SN6:{name:'Numinous (SN6)',price:1.30,vol:180,ath:5,atl:0.03,mcap:'~$13M',circ:'-',max:'-',info:'Decentralized forecasting network. Evolves AI agents into superhuman LLM-based forecasters. Prediction markets, geopolitics, sports.'},
+  SN7:{name:'SubVortex (SN7)',price:1.20,vol:160,ath:4,atl:0.02,mcap:'~$12M',circ:'-',max:'-',info:'Decentralized infrastructure subnet powering Bittensor with reliable subtensor nodes and routing.'},
+  SN10:{name:'Swap (SN10)',price:0.90,vol:175,ath:3.5,atl:0.02,mcap:'~$9M',circ:'-',max:'-',info:'By TaoFi. One-click cross-chain DEX bridging Base/Ethereum assets into native Bittensor subnet tokens.'},
+  SN22:{name:'Desearch (SN22)',price:1.10,vol:170,ath:4.5,atl:0.02,mcap:'~$11M',circ:'-',max:'-',info:'By Datura AI. AI-powered decentralized search engine with Twitter, Reddit, Arxiv analysis.'},
+  SN27:{name:'Nodexo (SN27)',price:1.50,vol:165,ath:5,atl:0.05,mcap:'~$15M',circ:'-',max:'-',info:'Decentralized GPU cloud marketplace enabling providers to rent compute power on blockchain.'},
+  SN33:{name:'ReadyAI (SN33)',price:0.80,vol:170,ath:3,atl:0.01,mcap:'~$8M',circ:'-',max:'-',info:'By Afterparty. Fosters decentralized effort to build extensive dialogue dataset. Mark Jeffrey mined this with OpenClaw.'},
+  SN35:{name:'Cartha (SN35)',price:0.70,vol:180,ath:2.5,atl:0.01,mcap:'~$7M',circ:'-',max:'-',info:'By 0xMarkets. Decentralized liquidity engine powering deep, dynamic liquidity for multi-asset DEX.'},
+  SN41:{name:'Almanac (SN41)',price:0.60,vol:180,ath:2,atl:0.01,mcap:'~$6M',circ:'-',max:'-',info:'Decentralized market intelligence for sports predictions. Rewards traders for profitable insights.'},
+  SN50:{name:'Synth (SN50)',price:0.75,vol:175,ath:3,atl:0.01,mcap:'~$7.5M',circ:'-',max:'-',info:'By Mode Network. Generates precise synthetic price data for AI-driven trading.'},
+  SN65:{name:'TAO Private Network (SN65)',price:0.50,vol:180,ath:2,atl:0.005,mcap:'~$5M',circ:'-',max:'-',info:'Decentralized anonymous VPN network offering censorship-resistant internet access via Bittensor.'},
+  SN68:{name:'NOVA (SN68)',price:0.40,vol:190,ath:1.5,atl:0.005,mcap:'~$4M',circ:'-',max:'-',info:'By Metanova Labs. Decentralized AI network accelerating drug discovery.'},
+  SN76:{name:'Safe Scan (SN76)',price:0.35,vol:190,ath:1.2,atl:0.005,mcap:'~$3.5M',circ:'-',max:'-',info:'Decentralized AI cancer screening subnet offering free, open-source early detection tools.'},
+  SN89:{name:'InfiniteHash (SN89)',price:0.45,vol:185,ath:1.8,atl:0.005,mcap:'~$4.5M',circ:'-',max:'-',info:'Decentralized Bitcoin mining pool on Bittensor with subsidized rewards and Lightning Network.'},
+  SN124:{name:'Swarm (SN124)',price:0.30,vol:200,ath:1,atl:0.005,mcap:'~$3M',circ:'-',max:'-',info:'Decentralized open-source autopilot network enabling safe, efficient autonomous drone flight.'},
+  CUSTOM:{name:'Custom Token',price:100,vol:120,ath:0,atl:0,mcap:'-',circ:'-',max:'-',info:'Enter your own price and parameters.'},
+};
+
+// Default data for subnets not explicitly defined above
+function getTokenData(id) {
+  if (TOKENS[id]) return TOKENS[id];
+  // Generate reasonable defaults for unlisted subnets
+  const num = parseInt(id.replace('SN',''));
+  const sel = document.getElementById('tokenSelect');
+  const opt = sel.querySelector(`option[value="${id}"]`);
+  const name = opt ? opt.textContent.trim() : `Subnet ${num}`;
+  return {
+    name: name,
+    price: Math.max(0.1, (Math.random() * 2 + 0.1).toFixed(2) * 1),
+    vol: 175,
+    ath: 0,
+    atl: 0,
+    mcap: '~Unknown',
+    circ: '-',
+    max: '-',
+    info: `Bittensor Subnet ${num}. Check taostats.io or tao.app for current price and details. Subnet alpha prices are highly volatile and many have limited liquidity.`
+  };
+}
+
+const SCENARIOS=[
+  {id:'crash',name:'Crash',icon:'💥',drift:-70,vol:200,desc:'Severe bear market, -70% annual drift'},
+  {id:'bear',name:'Bear',icon:'🐻',drift:-40,vol:160,desc:'Sustained downtrend, high volatility'},
+  {id:'belowavg',name:'Below Avg',icon:'📉',drift:-15,vol:130,desc:'Underperforming, mild decline'},
+  {id:'neutral',name:'Neutral',icon:'⚖️',drift:0,vol:120,desc:'Sideways, no clear trend'},
+  {id:'base',name:'Base Case',icon:'📊',drift:30,vol:110,desc:'Moderate growth, reduced vol'},
+  {id:'bull',name:'Bull',icon:'🐂',drift:80,vol:130,desc:'Strong uptrend, AI narrative'},
+  {id:'moonshot',name:'Moonshot',icon:'🚀',drift:150,vol:180,desc:'Parabolic run, extreme vol'},
+  {id:'custom',name:'Custom',icon:'🎛️',drift:0,vol:120,desc:'Set your own parameters'},
+];
+
+let activeScenario='neutral';
+let simResults=null;
+
+// ============================================================
+//  UI
+// ============================================================
+function g(id){return document.getElementById(id)}
+function buildScenarios(){
+  g('scenGrid').innerHTML=SCENARIOS.map(s=>`
+    <div class="scenario-pill ${activeScenario===s.id?'active':''}" onclick="pickScenario('${s.id}')">
+      <div class="ico">${s.icon}</div><div class="nm">${s.name}</div><div class="ds">${s.desc}</div>
+    </div>`).join('');
+}
+function pickScenario(id){
+  activeScenario=id;
+  const s=SCENARIOS.find(x=>x.id===id);
+  if(s&&id!=='custom'){g('driftSlider').value=s.drift;g('volSlider').value=s.vol}
+  buildScenarios();updateUI();
+}
+function onTokenChange(){
+  const t=getTokenData(g('tokenSelect').value);
+  g('priceInput').value=t.price;
+  g('volSlider').value=t.vol;
+  updateUI();
+}
+function updateUI(){
+  const t=getTokenData(g('tokenSelect').value);
+  g('volVal').textContent=g('volSlider').value+'%';
+  g('driftVal').textContent=(g('driftSlider').value>0?'+':'')+g('driftSlider').value+'%';
+  let info=`<b>${t.name}</b>`;
+  if(t.ath)info+=` · ATH: $${t.ath} · ATL: $${t.atl}`;
+  if(t.mcap!=='-')info+=` · MCap: ${t.mcap}`;
+  if(t.circ!=='-')info+=` · Circ: ${t.circ}`;
+  if(t.max!=='-')info+=` · Max: ${t.max}`;
+  info+=`<br>${t.info}`;
+  g('tokenInfo').innerHTML=info;
+}
+
+// ============================================================
+//  MONTE CARLO ENGINE — Geometric Brownian Motion
+// ============================================================
+function runSimulation(){
+  const S0=parseFloat(g('priceInput').value)||100;
+  const days=parseInt(g('horizon').value);
+  const N=parseInt(g('simCount').value);
+  const annVol=parseFloat(g('volSlider').value)/100;
+  const annDrift=parseFloat(g('driftSlider').value)/100;
+  const dt=1/365;
+  
+  // Run token simulation
+  const result = runGBM(S0, days, N, annDrift, annVol, dt);
+  
+  // Run BTC simulation if overlay checked
+  let btcResult = null;
+  const btcOn = g('btcOverlay').checked;
+  if (btcOn) {
+    // BTC: ~65% annual vol, ~30% drift (historical avg), normalize to same starting price for comparison
+    btcResult = runGBM(S0, days, N, 0.30, 0.65, dt);
+  }
+  
+  simResults = { ...result, S0, days, N, mu: annDrift, sigma: annVol, btc: btcResult };
+  renderResults();
+}
+
+function runGBM(S0, days, N, mu, sigma, dt) {
+  const paths=[];
+  const finalPrices=[];
+  for(let i=0;i<N;i++){
+    const path=[S0];
+    let price=S0;
+    for(let d=1;d<=days;d++){
+      const z=gaussianRandom();
+      price=price*Math.exp((mu-0.5*sigma*sigma)*dt+sigma*Math.sqrt(dt)*z);
+      if(price<0.001)price=0.001;
+      path.push(price);
+    }
+    paths.push(path);
+    finalPrices.push(price);
+  }
+  const pctDays=[];
+  for(let d=0;d<=days;d++){
+    const dayPrices=paths.map(p=>p[d]).sort((a,b)=>a-b);
+    pctDays.push({
+      p5:percentile(dayPrices,5),p25:percentile(dayPrices,25),p50:percentile(dayPrices,50),
+      p75:percentile(dayPrices,75),p95:percentile(dayPrices,95),
+    });
+  }
+  finalPrices.sort((a,b)=>a-b);
+  return { paths, finalPrices, pctDays };
+}
+  renderResults();
+}
+
+function gaussianRandom(){
+  let u=0,v=0;
+  while(u===0)u=Math.random();
+  while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function percentile(arr,p){
+  const idx=(p/100)*(arr.length-1);
+  const lo=Math.floor(idx),hi=Math.ceil(idx),frac=idx-lo;
+  return arr[lo]*(1-frac)+arr[hi]*frac;
+}
+
+// ============================================================
+//  RENDER RESULTS
+// ============================================================
+function renderResults(){
+  if(!simResults)return;
+  const{S0,days,N,finalPrices,pctDays}=simResults;
+  
+  g('resultsCard').style.display='block';
+  g('distCard').style.display='block';
+  g('probCard').style.display='block';
+  
+  const fp=finalPrices;
+  const p5=percentile(fp,5),p25=percentile(fp,25),p50=percentile(fp,50),p75=percentile(fp,75),p95=percentile(fp,95);
+  const mean=fp.reduce((a,b)=>a+b,0)/fp.length;
+  
+  const c=(v,ref)=>v>=ref?'var(--green)':'var(--red)';
+  
+  g('resultStats').innerHTML=`
+    <div class="stat"><div class="k">5th Pctl</div><div class="v" style="color:var(--red)">$${fmt(p5)}</div><div class="s">${pctChg(p5,S0)}</div></div>
+    <div class="stat"><div class="k">25th Pctl</div><div class="v" style="color:var(--amber)">$${fmt(p25)}</div><div class="s">${pctChg(p25,S0)}</div></div>
+    <div class="stat"><div class="k">Median</div><div class="v" style="color:var(--tau)">$${fmt(p50)}</div><div class="s">${pctChg(p50,S0)}</div></div>
+    <div class="stat"><div class="k">75th Pctl</div><div class="v" style="color:var(--blue)">$${fmt(p75)}</div><div class="s">${pctChg(p75,S0)}</div></div>
+    <div class="stat"><div class="k">95th Pctl</div><div class="v" style="color:var(--green)">$${fmt(p95)}</div><div class="s">${pctChg(p95,S0)}</div></div>`;
+  
+  drawPaths();
+  drawDist();
+  renderProb();
+  
+  // Scroll to results
+  g('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function fmt(n){if(n>=1000)return n.toFixed(0);if(n>=1)return n.toFixed(2);return n.toFixed(4)}
+function pctChg(v,ref){const p=((v-ref)/ref*100);return(p>=0?'+':'')+p.toFixed(1)+'%'}
+
+// ============================================================
+//  DRAW PATHS (Canvas)
+// ============================================================
+function drawPaths(){
+  const canvas=g('simCanvas');
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*2;canvas.height=rect.height*2;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);
+  const W=rect.width,H=rect.height;
+  
+  const{pctDays,days,S0}=simResults;
+  
+  // Find Y range (include BTC if overlaying)
+  let yMin=Infinity,yMax=-Infinity;
+  pctDays.forEach(d=>{yMin=Math.min(yMin,d.p5);yMax=Math.max(yMax,d.p95)});
+  if(simResults.btc){
+    simResults.btc.pctDays.forEach(d=>{yMin=Math.min(yMin,d.p25);yMax=Math.max(yMax,d.p75)});
+  }
+  yMin*=0.9;yMax*=1.1;
+  
+  const xScale=d=>(d/days)*(W-40)+20;
+  const yScale=p=>H-20-((p-yMin)/(yMax-yMin))*(H-40);
+  
+  // Fill bands
+  ctx.globalAlpha=0.08;
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--tau').trim();
+  ctx.beginPath();
+  for(let d=0;d<=days;d++){if(d===0)ctx.moveTo(xScale(d),yScale(pctDays[d].p95));else ctx.lineTo(xScale(d),yScale(pctDays[d].p95))}
+  for(let d=days;d>=0;d--)ctx.lineTo(xScale(d),yScale(pctDays[d].p5));
+  ctx.closePath();ctx.fill();
+  
+  ctx.globalAlpha=0.12;
+  ctx.beginPath();
+  for(let d=0;d<=days;d++){if(d===0)ctx.moveTo(xScale(d),yScale(pctDays[d].p75));else ctx.lineTo(xScale(d),yScale(pctDays[d].p75))}
+  for(let d=days;d>=0;d--)ctx.lineTo(xScale(d),yScale(pctDays[d].p25));
+  ctx.closePath();ctx.fill();
+  
+  ctx.globalAlpha=1;
+  
+  // Lines
+  const drawLine=(key,color,width)=>{
+    ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();
+    for(let d=0;d<=days;d++){const y=yScale(pctDays[d][key]);if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y)}
+    ctx.stroke();
+  };
+  
+  const cs=getComputedStyle(document.documentElement);
+  drawLine('p5',cs.getPropertyValue('--red').trim(),1);
+  drawLine('p25',cs.getPropertyValue('--amber').trim(),1);
+  drawLine('p50',cs.getPropertyValue('--tau').trim(),2);
+  drawLine('p75',cs.getPropertyValue('--blue').trim(),1);
+  drawLine('p95',cs.getPropertyValue('--green').trim(),1);
+  
+  // Starting price line
+  ctx.strokeStyle=cs.getPropertyValue('--text3').trim();ctx.lineWidth=0.5;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(xScale(0),yScale(S0));ctx.lineTo(xScale(days),yScale(S0));ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Y axis labels
+  ctx.fillStyle=cs.getPropertyValue('--text3').trim();ctx.font='9px JetBrains Mono';ctx.textAlign='right';
+  const steps=5;
+  for(let i=0;i<=steps;i++){
+    const p=yMin+(yMax-yMin)*(i/steps);
+    ctx.fillText('$'+fmt(p),18,yScale(p)+3);
+  }
+  
+  // BTC overlay
+  if(simResults.btc){
+    const btcPct=simResults.btc.pctDays;
+    // BTC median line (dashed amber)
+    ctx.strokeStyle=cs.getPropertyValue('--amber').trim();ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.globalAlpha=0.8;
+    ctx.beginPath();
+    for(let d=0;d<=days;d++){
+      const y=yScale(Math.max(yMin,Math.min(yMax,btcPct[d].p50)));
+      if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y);
+    }
+    ctx.stroke();
+    // BTC 25-75 band
+    ctx.setLineDash([]);ctx.globalAlpha=0.06;ctx.fillStyle=cs.getPropertyValue('--amber').trim();
+    ctx.beginPath();
+    for(let d=0;d<=days;d++){const y=yScale(Math.max(yMin,Math.min(yMax,btcPct[d].p75)));if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y)}
+    for(let d=days;d>=0;d--){const y=yScale(Math.max(yMin,Math.min(yMax,btcPct[d].p25)));ctx.lineTo(xScale(d),y)}
+    ctx.closePath();ctx.fill();
+    ctx.globalAlpha=1;ctx.setLineDash([]);
+    
+    // BTC label
+    const btcEnd=btcPct[days].p50;
+    const btcY=yScale(Math.max(yMin,Math.min(yMax,btcEnd)));
+    ctx.fillStyle=cs.getPropertyValue('--amber').trim();ctx.font='bold 8px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText('₿ BTC '+pctChg(btcEnd,S0),xScale(days)+4,btcY+3);
+    
+    g('btcLegend').innerHTML='<span style="color:var(--amber)">- - - ₿ BTC median (65% vol, 30% drift) with 25-75th band</span>';
+  } else {
+    g('btcLegend').innerHTML='';
+  }
+}
+
+// ============================================================
+//  DRAW DISTRIBUTION HISTOGRAM
+// ============================================================
+function drawDist(){
+  const canvas=g('distCanvas');
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*2;canvas.height=rect.height*2;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);
+  const W=rect.width,H=rect.height;
+  
+  const{finalPrices,S0}=simResults;
+  const bins=40;
+  const mn=finalPrices[0],mx=finalPrices[finalPrices.length-1];
+  const range=mx-mn||1;
+  const bw=range/bins;
+  const counts=new Array(bins).fill(0);
+  finalPrices.forEach(p=>{let b=Math.floor((p-mn)/bw);if(b>=bins)b=bins-1;counts[b]++});
+  const maxC=Math.max(...counts);
+  
+  const cs=getComputedStyle(document.documentElement);
+  const barW=(W-40)/bins;
+  
+  counts.forEach((c,i)=>{
+    const x=20+i*barW;
+    const h=(c/maxC)*(H-30);
+    const midPrice=mn+(i+0.5)*bw;
+    const color=midPrice<S0?cs.getPropertyValue('--red').trim():cs.getPropertyValue('--tau').trim();
+    ctx.fillStyle=color;ctx.globalAlpha=0.6;
+    ctx.fillRect(x,H-10-h,barW-1,h);
+  });
+  
+  ctx.globalAlpha=1;
+  // Starting price marker
+  const sx=20+((S0-mn)/range)*(W-40);
+  ctx.strokeStyle=cs.getPropertyValue('--amber').trim();ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(sx,5);ctx.lineTo(sx,H-10);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=cs.getPropertyValue('--amber').trim();ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('Start $'+fmt(S0),sx,10);
+  
+  // Distribution stats
+  const fp=finalPrices;
+  const belowStart=fp.filter(p=>p<S0).length/fp.length*100;
+  g('distStats').innerHTML=`
+    <div class="stat"><div class="k">Below Start</div><div class="v" style="color:var(--red)">${belowStart.toFixed(1)}%</div></div>
+    <div class="stat"><div class="k">Above Start</div><div class="v" style="color:var(--green)">${(100-belowStart).toFixed(1)}%</div></div>
+    <div class="stat"><div class="k">Mean</div><div class="v" style="color:var(--tau)">$${fmt(fp.reduce((a,b)=>a+b,0)/fp.length)}</div></div>
+    <div class="stat"><div class="k">Min</div><div class="v" style="color:var(--red)">$${fmt(fp[0])}</div></div>
+    <div class="stat"><div class="k">Max</div><div class="v" style="color:var(--green)">$${fmt(fp[fp.length-1])}</div></div>`;
+}
+
+// ============================================================
+//  PROBABILITY ANALYSIS
+// ============================================================
+function renderProb(){
+  const{finalPrices,S0}=simResults;
+  const N=finalPrices.length;
+  const t=g('tokenSelect').value;
+  const tok=getTokenData(t);
+  
+  const targets=[
+    {label:'50% drawdown',price:S0*0.5,color:'var(--red)'},
+    {label:'25% drawdown',price:S0*0.75,color:'var(--red)'},
+    {label:'Break even',price:S0,color:'var(--amber)'},
+    {label:'2x (100% gain)',price:S0*2,color:'var(--tau)'},
+    {label:'3x (200% gain)',price:S0*3,color:'var(--blue)'},
+    {label:'5x (400% gain)',price:S0*5,color:'var(--green)'},
+  ];
+  if(tok.ath&&tok.ath>S0){
+    targets.push({label:`ATH ($${tok.ath})`,price:tok.ath,color:'var(--purple)'});
+  }
+  
+  let html='';
+  targets.forEach(tgt=>{
+    const pct=finalPrices.filter(p=>tgt.label.includes('drawdown')?p<=tgt.price:p>=tgt.price).length/N*100;
+    html+=`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span style="color:var(--text2)">${tgt.label} <span style="color:var(--text3)">($${fmt(tgt.price)})</span></span>
+        <span style="font-weight:700;font-family:'JetBrains Mono',monospace;color:${tgt.color}">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="pct-bar"><div class="fill" style="width:${pct}%;background:${tgt.color}"></div></div>
+    </div>`;
+  });
+  
+  g('probContent').innerHTML=html;
+  
+  // BTC comparison probabilities
+  if(simResults.btc){
+    const btcFP=simResults.btc.finalPrices;
+    const btcN=btcFP.length;
+    let btcHtml='';
+    const btcTargets=[
+      {label:'50% drawdown',price:S0*0.5,color:'var(--red)'},
+      {label:'Break even',price:S0,color:'var(--amber)'},
+      {label:'2x',price:S0*2,color:'var(--tau)'},
+      {label:'3x',price:S0*3,color:'var(--blue)'},
+      {label:'5x',price:S0*5,color:'var(--green)'},
+    ];
+    btcTargets.forEach(tgt=>{
+      const pct=btcFP.filter(p=>tgt.label.includes('drawdown')?p<=tgt.price:p>=tgt.price).length/btcN*100;
+      btcHtml+=`<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px">
+          <span style="color:var(--text2)">₿ ${tgt.label}</span>
+          <span style="font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--amber)">${pct.toFixed(1)}%</span>
+        </div>
+        <div class="pct-bar"><div class="fill" style="width:${pct}%;background:var(--amber);opacity:0.7"></div></div>
+      </div>`;
+    });
+    g('btcProbBars').innerHTML=btcHtml;
+    g('btcProbContent').style.display='block';
+  } else {
+    g('btcProbContent').style.display='none';
+  }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+buildScenarios();
+updateUI();
+
+// Auto-run on load
+setTimeout(runSimulation,300);
+
+// PWA
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+</script>
+</body>
+</html>

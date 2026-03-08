@@ -1,0 +1,11 @@
+{
+  "name": "TAO Monte Carlo",
+  "short_name": "TAO MC",
+  "description": "Bittensor price simulation engine with Monte Carlo analysis",
+  "start_url": "/tao-monte-carlo/",
+  "display": "standalone",
+  "background_color": "#080c16",
+  "theme_color": "#080c16",
+  "orientation": "any",
+  "icons": [{"src": "icon.svg","sizes": "any","type": "image/svg+xml","purpose": "any"}]
+}

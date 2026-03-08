@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#080c16"/>
+  <text x="256" y="200" text-anchor="middle" fill="#00d4aa" font-size="120" font-weight="700" font-family="monospace">τ</text>
+  <text x="256" y="300" text-anchor="middle" fill="#4d9bf7" font-size="40" font-weight="600" font-family="monospace">MONTE</text>
+  <text x="256" y="350" text-anchor="middle" fill="#8899b4" font-size="32" font-weight="400" font-family="monospace">CARLO</text>
+  <path d="M100,420 Q150,380 200,400 Q250,420 300,390 Q350,360 400,410" stroke="#00d4aa" stroke-width="4" fill="none" opacity="0.5"/>
+  <path d="M100,430 Q160,400 220,440 Q280,460 340,410 Q380,380 400,420" stroke="#f0a830" stroke-width="3" fill="none" opacity="0.4" stroke-dasharray="6,4"/>
+</svg>
