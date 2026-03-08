@@ -37,9 +37,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .hdr{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg)}
 .hdr h1{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--tau);flex:1;letter-spacing:-.5px}
 .hdr .sub{font-size:10px;color:var(--text3);letter-spacing:.3px}
-.theme-btn{width:36px;height:22px;border-radius:11px;border:none;background:var(--surface);cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0}
-.theme-btn .dot{width:18px;height:18px;border-radius:50%;background:var(--tau);font-size:10px;display:flex;align-items:center;justify-content:center;transition:.2s}
-[data-theme="light"] .theme-btn .dot{transform:translateX(14px)}
+.theme-btn{width:48px;height:28px;border-radius:14px;border:none;background:var(--surface);cursor:pointer;padding:3px;display:flex;align-items:center;flex-shrink:0;min-height:44px;min-width:48px;justify-content:flex-start}
+.theme-btn .dot{width:22px;height:22px;border-radius:50%;background:var(--tau);font-size:12px;display:flex;align-items:center;justify-content:center;transition:transform .2s;pointer-events:none}
+[data-theme="light"] .theme-btn .dot{transform:translateX(20px)}
 .main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
 .wrap{max-width:700px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
@@ -375,8 +375,9 @@ function toggleTheme(){
   document.getElementById('themeD').textContent=l?'🌙':'☀️';
   document.getElementById('themeColorMeta').content=l?'#080c16':'#f4f6fa';
   localStorage.setItem('tao-mc-theme',l?'dark':'light');
-}
-(function(){const s=localStorage.getItem('tao-mc-theme');if(s==='light'){document.documentElement.setAttribute('data-theme','light');document.getElementById('themeColorMeta').content='#f4f6fa';setTimeout(()=>{document.getElementById('themeD').textContent='☀️'},0)}})();
+};
+
+;(function(){const s=localStorage.getItem('tao-mc-theme');if(s==='light'){document.documentElement.setAttribute('data-theme','light');document.getElementById('themeColorMeta').content='#f4f6fa';setTimeout(function(){document.getElementById('themeD').textContent='☀️'},0);}})();
 
 // ============================================================
 //  TOKEN DATA
@@ -531,8 +532,6 @@ function runGBM(S0, days, N, mu, sigma, dt) {
   }
   finalPrices.sort((a,b)=>a-b);
   return { paths, finalPrices, pctDays };
-}
-  renderResults();
 }
 
 function gaussianRandom(){
