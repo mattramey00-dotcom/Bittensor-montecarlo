@@ -323,10 +323,9 @@ canvas{display:block;width:100%;height:100%}
 <!-- RESULTS -->
 <div class="card" id="resultsCard" style="display:none">
   <div class="card-t">📊 Simulation Results</div>
-  <div class="note" style="margin-bottom:12px" id="percentileExplainer">
-    <b>📖 Reading percentiles:</b> If the <b style="color:var(--red)">5th percentile</b> shows $50, that means only 5% of simulations ended below $50 — this is your <b>worst-case floor</b>. The <b style="color:var(--tau)">50th (median)</b> is the middle outcome — half ended above, half below. The <b style="color:var(--green)">95th percentile</b> is the best 5% of outcomes — your <b>moon scenario</b>.
-  </div>
+  <div id="dynamicPercentileExplainer" class="note" style="margin-bottom:12px"></div>
   <div class="stats" id="resultStats"></div>
+  <div id="resultInsight"></div>
   <div class="canvas-wrap"><canvas id="simCanvas"></canvas></div>
   <div class="legend" id="chartLegend">
     <span><span class="dot" style="background:var(--red)"></span>5th Pctl (Worst 5%)</span>
@@ -336,29 +335,42 @@ canvas{display:block;width:100%;height:100%}
     <span><span class="dot" style="background:var(--green)"></span>95th Pctl (Best 5%)</span>
   </div>
   <div id="btcLegend" style="text-align:center;margin-top:4px;font-size:9px;color:var(--text3)"></div>
+  <div id="chartExplainer"></div>
+</div>
+
+<!-- RISK/REWARD -->
+<div class="card" id="riskCard" style="display:none">
+  <div class="card-t">⚖️ Risk / Reward Breakdown</div>
+  <div id="riskContent"></div>
 </div>
 
 <!-- DISTRIBUTION -->
 <div class="card" id="distCard" style="display:none">
   <div class="card-t">📈 Price Distribution at End</div>
+  <div id="distExplainer" class="note" style="margin-bottom:10px"></div>
   <div class="canvas-wrap" style="height:160px"><canvas id="distCanvas"></canvas></div>
   <div class="stats" id="distStats"></div>
-  <div id="distBars"></div>
+  <div id="distInsight"></div>
 </div>
 
 <!-- PROBABILITY -->
 <div class="card" id="probCard" style="display:none">
   <div class="card-t">🎲 Probability Analysis</div>
-  <div class="note" style="margin-bottom:12px;background:var(--blue-dim);border-left:3px solid var(--blue)">
-    <b style="color:var(--blue)">📖 What do these probabilities mean?</b> If "2x" shows 35%, it means 35 out of every 100 simulated price paths ended at or above double your starting price. Higher % = more likely in the model. Remember: this is based on the volatility and drift YOU set — different assumptions give different odds.
-  </div>
+  <div id="probExplainer" class="note" style="margin-bottom:12px;background:var(--blue-dim);border-left:3px solid var(--blue)"></div>
   <div id="probContent"></div>
   <div id="btcProbContent" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
     <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:10px">₿ Bitcoin Comparison Probabilities</div>
     <div id="btcProbBars"></div>
   </div>
+  <div id="probInsight"></div>
+</div>
+
+<!-- WHAT THIS MEANS -->
+<div class="card" id="summaryCard" style="display:none">
+  <div class="card-t">🧠 What This All Means</div>
+  <div id="summaryContent"></div>
   <div class="note" style="margin-top:12px">
-    <b>⚠️ Important:</b> This is a mathematical simulation for educational purposes only. It uses Geometric Brownian Motion (GBM), the same model used in options pricing. Real crypto prices are influenced by regulation, technology adoption, market sentiment, black swan events, and factors no model can capture. Past volatility does not predict future results. This is <b>NOT</b> financial advice. Always DYOR.
+    <b>⚠️ Important:</b> This is a mathematical simulation for educational purposes only. It uses <b>Geometric Brownian Motion (GBM)</b>, the same model used in options pricing on Wall Street. Real crypto prices are influenced by regulation, technology adoption, market sentiment, black swan events, and factors no model can capture. Past volatility does not predict future results. This is <b>NOT</b> financial advice. Always DYOR.
   </div>
 </div>
 
@@ -558,24 +570,78 @@ function percentile(arr,p){
 // ============================================================
 function renderResults(){
   if(!simResults)return;
-  const{S0,days,N,finalPrices,pctDays}=simResults;
+  const{S0,days,N,finalPrices,pctDays,mu,sigma}=simResults;
+  const tok=getTokenData(g('tokenSelect').value);
+  const tokenName=tok.name.split('(')[0].trim();
+  const horizonLabel={90:'3 months',180:'6 months',365:'1 year',730:'2 years',1095:'3 years',1825:'5 years'}[days]||days+' days';
   
   g('resultsCard').style.display='block';
   g('distCard').style.display='block';
   g('probCard').style.display='block';
+  g('riskCard').style.display='block';
+  g('summaryCard').style.display='block';
   
   const fp=finalPrices;
   const p5=percentile(fp,5),p25=percentile(fp,25),p50=percentile(fp,50),p75=percentile(fp,75),p95=percentile(fp,95);
   const mean=fp.reduce((a,b)=>a+b,0)/fp.length;
+  const belowStart=fp.filter(p=>p<S0).length/fp.length*100;
+  const probDouble=fp.filter(p=>p>=S0*2).length/fp.length*100;
+  const prob50drop=fp.filter(p=>p<=S0*0.5).length/fp.length*100;
   
-  const c=(v,ref)=>v>=ref?'var(--green)':'var(--red)';
+  // ── PERCENTILE EXPLAINER (dynamic with actual numbers) ──
+  g('dynamicPercentileExplainer').innerHTML=`
+    <b>📖 What these numbers mean for your $${fmt(S0)} investment:</b><br>
+    Out of <b>${N.toLocaleString()}</b> simulated paths over <b>${horizonLabel}</b>:<br>
+    • <b style="color:var(--red)">5th percentile ($${fmt(p5)})</b> — In the worst 5% of scenarios, ${tokenName} drops to $${fmt(p5)} or lower. Only 1 in 20 paths was this bad.<br>
+    • <b style="color:var(--amber)">25th percentile ($${fmt(p25)})</b> — A below-average outcome. 75% of paths ended higher than this.<br>
+    • <b style="color:var(--tau)">50th percentile ($${fmt(p50)})</b> — The median. Half of all paths ended above $${fmt(p50)}, half below. This is your <b>most likely neighborhood</b>.<br>
+    • <b style="color:var(--blue)">75th percentile ($${fmt(p75)})</b> — An above-average outcome. Only 25% of paths beat this.<br>
+    • <b style="color:var(--green)">95th percentile ($${fmt(p95)})</b> — The moon case. Only 5% of paths — 1 in 20 — reached $${fmt(p95)} or higher.
+  `;
   
+  // ── STATS ROW ──
   g('resultStats').innerHTML=`
-    <div class="stat"><div class="k">5th Pctl</div><div class="v" style="color:var(--red)">$${fmt(p5)}</div><div class="s">${pctChg(p5,S0)}</div></div>
-    <div class="stat"><div class="k">25th Pctl</div><div class="v" style="color:var(--amber)">$${fmt(p25)}</div><div class="s">${pctChg(p25,S0)}</div></div>
+    <div class="stat"><div class="k">Worst 5%</div><div class="v" style="color:var(--red)">$${fmt(p5)}</div><div class="s">${pctChg(p5,S0)}</div></div>
+    <div class="stat"><div class="k">Below Avg</div><div class="v" style="color:var(--amber)">$${fmt(p25)}</div><div class="s">${pctChg(p25,S0)}</div></div>
     <div class="stat"><div class="k">Median</div><div class="v" style="color:var(--tau)">$${fmt(p50)}</div><div class="s">${pctChg(p50,S0)}</div></div>
-    <div class="stat"><div class="k">75th Pctl</div><div class="v" style="color:var(--blue)">$${fmt(p75)}</div><div class="s">${pctChg(p75,S0)}</div></div>
-    <div class="stat"><div class="k">95th Pctl</div><div class="v" style="color:var(--green)">$${fmt(p95)}</div><div class="s">${pctChg(p95,S0)}</div></div>`;
+    <div class="stat"><div class="k">Above Avg</div><div class="v" style="color:var(--blue)">$${fmt(p75)}</div><div class="s">${pctChg(p75,S0)}</div></div>
+    <div class="stat"><div class="k">Best 5%</div><div class="v" style="color:var(--green)">$${fmt(p95)}</div><div class="s">${pctChg(p95,S0)}</div></div>`;
+  
+  // ── RESULT INSIGHT (dynamic) ──
+  const spread=((p95-p5)/S0*100).toFixed(0);
+  const medianDir=p50>=S0?'up':'down';
+  const medianPct=Math.abs((p50-S0)/S0*100).toFixed(1);
+  g('resultInsight').innerHTML=`
+    <div class="note" style="margin-top:12px;background:var(--tau-dim);border-left:3px solid var(--tau)">
+      <b style="color:var(--tau)">💡 Quick Read:</b> The median outcome puts ${tokenName} at <b>$${fmt(p50)}</b> (${medianDir} ${medianPct}%) after ${horizonLabel}. The range between worst-case and best-case spans <b>${spread}%</b> of current price — ${parseInt(spread)>200?'extremely wide, reflecting high uncertainty':'a significant spread, typical of crypto volatility'}. ${belowStart>50?'More than half of paths ended below your starting price — the model leans bearish with these settings.':'The majority of paths ended above your starting price — the model leans bullish with these settings.'}
+    </div>`;
+  
+  // ── CHART EXPLAINER ──
+  g('chartExplainer').innerHTML=`
+    <div class="note" style="margin-top:10px">
+      <b>📖 Reading the chart:</b> The <b>shaded bands</b> show the range where most outcomes fall. The darker inner band is the 25th-75th percentile range (the "likely zone"), and the lighter outer band extends to the 5th-95th (the "almost everything" zone). The <b>dashed horizontal line</b> is your starting price of $${fmt(S0)}. Lines above it = profit, below = loss. ${simResults.btc?'The <b style="color:var(--amber)">amber dashed line</b> shows how BTC would perform with the same starting price for comparison.':''}${simResults.taoOverlay?'The <b style="color:var(--purple)">purple dashed line</b> shows TAO\'s simulated path alongside this subnet.':''}
+    </div>`;
+  
+  // ── RISK/REWARD CARD ──
+  const maxDrawdown=((fp[0]-S0)/S0*100).toFixed(1);
+  const maxUpside=((fp[fp.length-1]-S0)/S0*100).toFixed(1);
+  const riskRewardRatio=prob50drop>0?(probDouble/prob50drop).toFixed(1):'∞';
+  const vol=sigma*100;
+  g('riskContent').innerHTML=`
+    <div class="stats" style="margin-bottom:14px">
+      <div class="stat"><div class="k">Chance of Profit</div><div class="v" style="color:${belowStart<50?'var(--green)':'var(--red)'}">${(100-belowStart).toFixed(1)}%</div><div class="s">${(100-belowStart).toFixed(0)} of ${N.toLocaleString()} paths</div></div>
+      <div class="stat"><div class="k">Chance of Loss</div><div class="v" style="color:${belowStart>50?'var(--red)':'var(--amber)'}">${belowStart.toFixed(1)}%</div><div class="s">${(belowStart*N/100).toFixed(0)} paths below start</div></div>
+      <div class="stat"><div class="k">2x vs -50%</div><div class="v" style="color:var(--tau)">${riskRewardRatio}:1</div><div class="s">Reward-to-risk ratio</div></div>
+    </div>
+    <div class="note" style="background:var(--purple-dim);border-left:3px solid var(--purple)">
+      <b style="color:var(--purple)">⚖️ Risk/Reward Explained:</b> The chance of doubling your money is <b>${probDouble.toFixed(1)}%</b>, while the chance of losing half is <b>${prob50drop.toFixed(1)}%</b>. That gives a reward-to-risk ratio of <b>${riskRewardRatio}:1</b>. ${parseFloat(riskRewardRatio)>2?'This is favorable — you\'re being compensated for the risk.':parseFloat(riskRewardRatio)>1?'Roughly balanced — the upside slightly outweighs the downside risk.':'The downside risk outweighs the upside potential with these settings. Consider whether the risk is worth taking.'}
+    </div>
+    <div class="note" style="margin-top:8px">
+      <b>📖 Volatility context:</b> You set <b>${vol.toFixed(0)}% annual volatility</b>. For reference: the S&P 500 is ~15%, Bitcoin is ~65%, and most altcoins range 100-200%. ${vol>150?'This is extremely volatile — expect wild swings in both directions.':vol>100?'This is typical high-volatility crypto territory — big swings are normal.':vol>60?'This is moderate crypto volatility, similar to BTC.':'This is relatively low for crypto — expect a smoother ride.'}
+    </div>
+    <div class="note" style="margin-top:8px">
+      <b>📖 Drift context:</b> You set <b>${(mu*100).toFixed(0)}% annual drift</b>. ${mu>0.5?'This is very bullish — you\'re assuming strong upward momentum. Make sure this matches your actual conviction.':mu>0?'This assumes positive growth over time. The model will bias outcomes upward.':mu===0?'Neutral drift means no directional assumption — pure random walk around the current price.':'Negative drift means you\'re modeling a downtrend. The simulation will bias outcomes lower.'}
+    </div>`;
   
   drawPaths();
   drawDist();
@@ -759,22 +825,35 @@ function drawDist(){
   // Distribution stats
   const fp=finalPrices;
   const belowStart=fp.filter(p=>p<S0).length/fp.length*100;
+  const mean=fp.reduce((a,b)=>a+b,0)/fp.length;
   g('distStats').innerHTML=`
     <div class="stat"><div class="k">Below Start</div><div class="v" style="color:var(--red)">${belowStart.toFixed(1)}%</div></div>
     <div class="stat"><div class="k">Above Start</div><div class="v" style="color:var(--green)">${(100-belowStart).toFixed(1)}%</div></div>
-    <div class="stat"><div class="k">Mean</div><div class="v" style="color:var(--tau)">$${fmt(fp.reduce((a,b)=>a+b,0)/fp.length)}</div></div>
+    <div class="stat"><div class="k">Mean</div><div class="v" style="color:var(--tau)">$${fmt(mean)}</div></div>
     <div class="stat"><div class="k">Min</div><div class="v" style="color:var(--red)">$${fmt(fp[0])}</div></div>
     <div class="stat"><div class="k">Max</div><div class="v" style="color:var(--green)">$${fmt(fp[fp.length-1])}</div></div>`;
+  
+  // Dynamic distribution explainer
+  g('distExplainer').innerHTML=`<b>📖 Reading the histogram:</b> Each bar shows how many of the ${simResults.N.toLocaleString()} simulations ended in that price range. <span style="color:var(--red)">Red bars</span> = prices below your starting $${fmt(S0)}. <span style="color:var(--tau)">Teal bars</span> = prices above. The <span style="color:var(--amber)">dashed amber line</span> marks your start. A tall bar means many paths landed there — it's the most "popular" outcome.`;
+  
+  // Dynamic insight
+  const skew=mean>percentile(fp,50)?'right (bullish)':'left (bearish)';
+  const tailRatio=(fp[fp.length-1]/S0)/(S0/fp[0]);
+  g('distInsight').innerHTML=`
+    <div class="note" style="margin-top:10px;background:var(--green-dim);border-left:3px solid var(--green)">
+      <b style="color:var(--green)">📊 Distribution Shape:</b> The distribution is skewed to the <b>${skew}</b>. The mean ($${fmt(mean)}) is ${mean>percentile(fp,50)?'above':'below'} the median — ${mean>percentile(fp,50)?'a few very high outcomes pull the average up (the "long tail" of crypto)':'most outcomes cluster below the average, with limited upside in this scenario'}. The maximum simulated price was <b>$${fmt(fp[fp.length-1])}</b> (${pctChg(fp[fp.length-1],S0)}) while the minimum was <b>$${fmt(fp[0])}</b> (${pctChg(fp[0],S0)}).
+    </div>`;
 }
 
 // ============================================================
 //  PROBABILITY ANALYSIS
 // ============================================================
 function renderProb(){
-  const{finalPrices,S0}=simResults;
-  const N=finalPrices.length;
+  const{finalPrices,S0,days,N}=simResults;
+  const fp=finalPrices;
   const t=g('tokenSelect').value;
   const tok=getTokenData(t);
+  const horizonLabel={90:'3 months',180:'6 months',365:'1 year',730:'2 years',1095:'3 years',1825:'5 years'}[days]||days+' days';
   
   const targets=[
     {label:'50% drawdown',price:S0*0.5,color:'var(--red)'},
@@ -801,6 +880,45 @@ function renderProb(){
   });
   
   g('probContent').innerHTML=html;
+  
+  // Dynamic prob explainer with actual numbers
+  const probBreakeven=fp.filter(p=>p>=S0).length/N*100;
+  g('probExplainer').innerHTML=`<b style="color:var(--blue)">📖 How to use this:</b> Each bar shows the % of ${N.toLocaleString()} simulations that hit that target. For example, <b>${probBreakeven.toFixed(0)}%</b> of paths ended above your starting price of $${fmt(S0)} — meaning in ${probBreakeven.toFixed(0)} out of 100 scenarios, you'd at least break even. The further you go from the starting price, the less likely (lower %) it becomes. These odds change dramatically when you adjust drift and volatility above.`;
+  
+  // Dynamic probability insight
+  const probTriple=fp.filter(p=>p>=S0*3).length/N*100;
+  const probHalf=fp.filter(p=>p<=S0*0.5).length/N*100;
+  g('probInsight').innerHTML=`
+    <div class="note" style="margin-top:12px;background:var(--amber-dim);border-left:3px solid var(--amber)">
+      <b style="color:var(--amber)">🎯 Key Takeaway:</b> With these settings, you have a <b>${probBreakeven.toFixed(0)}% chance of profit</b> and a <b>${(100-probBreakeven).toFixed(0)}% chance of loss</b> over ${horizonLabel}. ${probTriple>10?`There\'s a meaningful <b>${probTriple.toFixed(0)}%</b> shot at tripling your money.`:`The chance of 3x is only <b>${probTriple.toFixed(1)}%</b> — a long shot.`} ${probHalf>20?`However, there\'s a <b>${probHalf.toFixed(0)}%</b> chance of losing half — that\'s significant risk.`:`The chance of losing half is only <b>${probHalf.toFixed(1)}%</b> — relatively contained.`}
+    </div>`;
+
+  // ── SUMMARY CARD ──
+  const tok2=getTokenData(g('tokenSelect').value);
+  const tokenName2=tok2.name.split('(')[0].trim();
+  const horizonLabel2={90:'3 months',180:'6 months',365:'1 year',730:'2 years',1095:'3 years',1825:'5 years'}[simResults.days]||simResults.days+' days';
+  const p50=percentile(fp,50);
+  
+  let summaryHTML=`
+    <div style="font-size:12px;color:var(--text2);line-height:1.8">
+      <p>You ran <b>${N.toLocaleString()}</b> simulated price paths for <b>${tokenName2}</b> starting at <b>$${fmt(S0)}</b> over <b>${horizonLabel2}</b> with <b>${(simResults.sigma*100).toFixed(0)}% volatility</b> and <b>${(simResults.mu*100).toFixed(0)}% drift</b>.</p>
+      <p style="margin-top:8px">The <b>most likely outcome</b> (median) is <b style="color:var(--tau)">$${fmt(p50)}</b>, a ${p50>=S0?'gain':'loss'} of <b>${pctChg(p50,S0)}</b>. In the best 5% of scenarios, the price reaches <b style="color:var(--green)">$${fmt(percentile(fp,95))}</b>. In the worst 5%, it falls to <b style="color:var(--red)">$${fmt(percentile(fp,5))}</b>.</p>`;
+  
+  if(simResults.btc){
+    const btcMedian=percentile(simResults.btc.finalPrices,50);
+    const btcProfit=simResults.btc.finalPrices.filter(p=>p>=S0).length/simResults.btc.finalPrices.length*100;
+    summaryHTML+=`<p style="margin-top:8px"><b style="color:var(--amber)">₿ BTC comparison:</b> Bitcoin's median outcome is <b>$${fmt(btcMedian)}</b> (${pctChg(btcMedian,S0)}) with a <b>${btcProfit.toFixed(0)}%</b> chance of profit. ${p50>btcMedian?`${tokenName2} outperforms BTC in the median case by ${((p50-btcMedian)/btcMedian*100).toFixed(0)}%, but with ${simResults.sigma>0.65?'higher':'comparable'} volatility — more reward but more risk.`:`BTC outperforms in the median case, but ${tokenName2} has ${percentile(fp,95)>percentile(simResults.btc.finalPrices,95)?'higher upside in the best scenarios (the 95th percentile is higher)':'a tighter range of outcomes'}.`}</p>`;
+  }
+  
+  if(simResults.taoOverlay){
+    const taoMedian=percentile(simResults.taoOverlay.finalPrices,50);
+    summaryHTML+=`<p style="margin-top:8px"><b style="color:var(--purple)">τ TAO comparison:</b> TAO's median simulated outcome is <b>$${fmt(taoMedian)}</b> (${pctChg(taoMedian,S0)}). ${p50>taoMedian?`This subnet outperforms TAO in the median scenario with these settings.`:`TAO's median outperforms this subnet in the simulation, suggesting the parent token may be a safer bet if conviction is equal.`}</p>`;
+  }
+  
+  summaryHTML+=`
+      <p style="margin-top:8px"><b>Remember:</b> This simulation assumes prices follow a random walk (Geometric Brownian Motion). Real markets have trends, crashes, news events, and whale moves that this model can't capture. Use this as one data point, not the answer.</p>
+    </div>`;
+  g('summaryContent').innerHTML=summaryHTML;
   
   // BTC comparison probabilities
   if(simResults.btc){
