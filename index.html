@@ -499,11 +499,18 @@ function runSimulation(){
   let btcResult = null;
   const btcOn = g('btcOverlay').checked;
   if (btcOn) {
-    // BTC: ~65% annual vol, ~30% drift (historical avg), normalize to same starting price for comparison
     btcResult = runGBM(S0, days, N, 0.30, 0.65, dt);
   }
   
-  simResults = { ...result, S0, days, N, mu: annDrift, sigma: annVol, btc: btcResult };
+  // Run TAO overlay when a subnet is selected (not TAO itself, not custom)
+  let taoOverlay = null;
+  const selectedToken = g('tokenSelect').value;
+  if (selectedToken !== 'TAO' && selectedToken !== 'CUSTOM') {
+    // TAO sim normalized to same starting price for % comparison
+    taoOverlay = runGBM(S0, days, N, 0.0, 1.20, dt);
+  }
+  
+  simResults = { ...result, S0, days, N, mu: annDrift, sigma: annVol, btc: btcResult, taoOverlay: taoOverlay };
   renderResults();
 }
 
@@ -591,19 +598,26 @@ function drawPaths(){
   const ctx=canvas.getContext('2d');
   ctx.scale(2,2);
   const W=rect.width,H=rect.height;
+  const LEFT=55; // extra left margin for Y labels
+  const RIGHT=10;
+  const TOP=15;
+  const BOT=20;
   
   const{pctDays,days,S0}=simResults;
   
-  // Find Y range (include BTC if overlaying)
+  // Find Y range (include BTC and TAO overlays)
   let yMin=Infinity,yMax=-Infinity;
   pctDays.forEach(d=>{yMin=Math.min(yMin,d.p5);yMax=Math.max(yMax,d.p95)});
   if(simResults.btc){
     simResults.btc.pctDays.forEach(d=>{yMin=Math.min(yMin,d.p25);yMax=Math.max(yMax,d.p75)});
   }
+  if(simResults.taoOverlay){
+    simResults.taoOverlay.pctDays.forEach(d=>{yMin=Math.min(yMin,d.p25);yMax=Math.max(yMax,d.p75)});
+  }
   yMin*=0.9;yMax*=1.1;
   
-  const xScale=d=>(d/days)*(W-40)+20;
-  const yScale=p=>H-20-((p-yMin)/(yMax-yMin))*(H-40);
+  const xScale=d=>(d/days)*(W-LEFT-RIGHT)+LEFT;
+  const yScale=p=>TOP+((yMax-p)/(yMax-yMin))*(H-TOP-BOT);
   
   // Fill bands
   ctx.globalAlpha=0.08;
@@ -640,18 +654,21 @@ function drawPaths(){
   ctx.beginPath();ctx.moveTo(xScale(0),yScale(S0));ctx.lineTo(xScale(days),yScale(S0));ctx.stroke();
   ctx.setLineDash([]);
   
-  // Y axis labels
+  // Y axis labels — fully visible
   ctx.fillStyle=cs.getPropertyValue('--text3').trim();ctx.font='9px JetBrains Mono';ctx.textAlign='right';
   const steps=5;
   for(let i=0;i<=steps;i++){
     const p=yMin+(yMax-yMin)*(i/steps);
-    ctx.fillText('$'+fmt(p),18,yScale(p)+3);
+    ctx.fillText('$'+fmt(p),LEFT-4,yScale(p)+3);
+    // Grid line
+    ctx.strokeStyle=cs.getPropertyValue('--border').trim();ctx.lineWidth=0.3;ctx.setLineDash([2,3]);
+    ctx.beginPath();ctx.moveTo(LEFT,yScale(p));ctx.lineTo(W-RIGHT,yScale(p));ctx.stroke();
+    ctx.setLineDash([]);
   }
   
   // BTC overlay
   if(simResults.btc){
     const btcPct=simResults.btc.pctDays;
-    // BTC median line (dashed amber)
     ctx.strokeStyle=cs.getPropertyValue('--amber').trim();ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.globalAlpha=0.8;
     ctx.beginPath();
     for(let d=0;d<=days;d++){
@@ -659,23 +676,43 @@ function drawPaths(){
       if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y);
     }
     ctx.stroke();
-    // BTC 25-75 band
     ctx.setLineDash([]);ctx.globalAlpha=0.06;ctx.fillStyle=cs.getPropertyValue('--amber').trim();
     ctx.beginPath();
     for(let d=0;d<=days;d++){const y=yScale(Math.max(yMin,Math.min(yMax,btcPct[d].p75)));if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y)}
     for(let d=days;d>=0;d--){const y=yScale(Math.max(yMin,Math.min(yMax,btcPct[d].p25)));ctx.lineTo(xScale(d),y)}
     ctx.closePath();ctx.fill();
     ctx.globalAlpha=1;ctx.setLineDash([]);
-    
-    // BTC label
     const btcEnd=btcPct[days].p50;
     const btcY=yScale(Math.max(yMin,Math.min(yMax,btcEnd)));
     ctx.fillStyle=cs.getPropertyValue('--amber').trim();ctx.font='bold 8px JetBrains Mono';ctx.textAlign='left';
-    ctx.fillText('₿ BTC '+pctChg(btcEnd,S0),xScale(days)+4,btcY+3);
-    
-    g('btcLegend').innerHTML='<span style="color:var(--amber)">- - - ₿ BTC median (65% vol, 30% drift) with 25-75th band</span>';
+    ctx.fillText('₿ BTC '+pctChg(btcEnd,S0),xScale(days)-50,Math.min(btcY-6,H-BOT-4));
+    g('btcLegend').innerHTML='<span style="color:var(--amber)">- - - ₿ BTC median (65% vol, 30% drift)</span>';
   } else {
     g('btcLegend').innerHTML='';
+  }
+  
+  // TAO overlay when subnet is selected
+  if(simResults.taoOverlay){
+    const taoPct=simResults.taoOverlay.pctDays;
+    ctx.strokeStyle=cs.getPropertyValue('--purple').trim();ctx.lineWidth=2;ctx.setLineDash([8,3]);ctx.globalAlpha=0.8;
+    ctx.beginPath();
+    for(let d=0;d<=days;d++){
+      const y=yScale(Math.max(yMin,Math.min(yMax,taoPct[d].p50)));
+      if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=0.05;ctx.fillStyle=cs.getPropertyValue('--purple').trim();
+    ctx.beginPath();
+    for(let d=0;d<=days;d++){const y=yScale(Math.max(yMin,Math.min(yMax,taoPct[d].p75)));if(d===0)ctx.moveTo(xScale(d),y);else ctx.lineTo(xScale(d),y)}
+    for(let d=days;d>=0;d--){const y=yScale(Math.max(yMin,Math.min(yMax,taoPct[d].p25)));ctx.lineTo(xScale(d),y)}
+    ctx.closePath();ctx.fill();
+    ctx.globalAlpha=1;ctx.setLineDash([]);
+    const taoEnd=taoPct[days].p50;
+    const taoY=yScale(Math.max(yMin,Math.min(yMax,taoEnd)));
+    ctx.fillStyle=cs.getPropertyValue('--purple').trim();ctx.font='bold 8px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText('τ TAO '+pctChg(taoEnd,S0),xScale(days)-50,Math.min(taoY+12,H-BOT-4));
+    const prevLegend=g('btcLegend').innerHTML;
+    g('btcLegend').innerHTML=prevLegend+' &nbsp;|&nbsp; <span style="color:var(--purple)">- · - τ TAO median (120% vol, 0% drift)</span>';
   }
 }
 
