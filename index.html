@@ -320,6 +320,17 @@ canvas{display:block;width:100%;height:100%}
   </div>
 </div>
 
+<!-- HISTORICAL PRICE + EVENTS -->
+<div class="card" id="historyCard">
+  <div class="card-t">📜 TAO Price History & Key Events</div>
+  <div class="note" style="margin-bottom:10px"><b>📖 Why this matters:</b> Understanding what moved TAO's price in the past helps you set more realistic expectations for your simulation. Each event below shows how catalysts — both positive and negative — impacted price. Hover/tap events for details.</div>
+  <div class="canvas-wrap" style="height:240px"><canvas id="histCanvas"></canvas></div>
+  <div id="histEventList" style="margin-top:12px"></div>
+  <div class="note" style="margin-top:10px;background:var(--purple-dim);border-left:3px solid var(--purple)">
+    <b style="color:var(--purple)">💡 How to use this:</b> Look at how much TAO moved during each event. A 650% rally in 3 months, a -78% crash in 6 months — these are the kinds of swings your simulation models. If your volatility setting produces moves smaller than what actually happened, you may be underestimating risk. If your drift assumes steady gains, remember that TAO's actual path was anything but smooth.
+  </div>
+</div>
+
 <!-- RESULTS -->
 <div class="card" id="resultsCard" style="display:none">
   <div class="card-t">📊 Simulation Results</div>
@@ -948,6 +959,129 @@ function renderProb(){
     g('btcProbContent').style.display='none';
   }
 }
+
+// ============================================================
+//  HISTORICAL PRICE DATA & EVENTS
+// ============================================================
+const TAO_HISTORY = [
+  // [date, price] — monthly data points from launch to present
+  ['2023-03','93'],['2023-04','47'],['2023-05','31'],['2023-06','50'],['2023-07','86'],
+  ['2023-08','60'],['2023-09','55'],['2023-10','54'],['2023-11','89'],['2023-12','379'],
+  ['2024-01','520'],['2024-02','665'],['2024-03','758'],['2024-04','600'],['2024-05','467'],
+  ['2024-06','380'],['2024-07','340'],['2024-08','163'],['2024-09','380'],['2024-10','500'],
+  ['2024-11','660'],['2024-12','441'],
+  ['2025-01','565'],['2025-02','324'],['2025-03','259'],['2025-04','228'],['2025-05','467'],
+  ['2025-06','430'],['2025-07','420'],['2025-08','380'],['2025-09','350'],['2025-10','200'],
+  ['2025-11','506'],['2025-12','270'],
+  ['2026-01','223'],['2026-02','180'],['2026-03','185'],
+].map(d=>({date:d[0],price:parseFloat(d[1])}));
+
+const TAO_EVENTS = [
+  {date:'2023-03',price:93,label:'TAO Launch',desc:'Bittensor launches on exchanges at ~$93. Fair launch, no ICO.',type:'launch',impact:'neutral'},
+  {date:'2023-05',price:31,label:'All-Time Low',desc:'TAO hits ATL of $30.83 amid low awareness and early bear market conditions.',type:'bear',impact:'negative'},
+  {date:'2023-11',price:89,label:'AI Narrative Ignites',desc:'ChatGPT anniversary + AI hype cycle begins. TAO catches the wave as a decentralized AI play.',type:'bull',impact:'positive'},
+  {date:'2023-12',price:379,label:'First Major Rally',desc:'TAO surges 650% in ~2 months. Crypto discovers Bittensor. Subnet ecosystem begins expanding rapidly.',type:'bull',impact:'positive'},
+  {date:'2024-02',price:665,label:'Binance Listing',desc:'Major exchange listings dramatically increase accessibility and trading volume. Price nears $700.',type:'bull',impact:'positive'},
+  {date:'2024-03',price:758,label:'All-Time High $758',desc:'TAO reaches ATH amid peak AI narrative. Market cap hits $4.6B. Profit-taking begins shortly after.',type:'ath',impact:'positive'},
+  {date:'2024-05',price:467,label:'July 2024 Security Breach',desc:'Bittensor pauses chain operations after a wallet exploit. Trust shaken but team responds quickly.',type:'bear',impact:'negative'},
+  {date:'2024-08',price:163,label:'Crypto Summer Crash',desc:'Broad market selloff. TAO drops to $163 — a 78% decline from ATH in just 5 months.',type:'bear',impact:'negative'},
+  {date:'2024-10',price:500,label:'Recovery + Subnet Growth',desc:'Network hits 50+ subnets. Institutional interest grows (DCG, Grayscale mentions). TAO rebounds to $500.',type:'bull',impact:'positive'},
+  {date:'2024-12',price:441,label:'Year-End Consolidation',desc:'TAO closes 2024 at ~$441 after volatile year. +42% YoY despite massive drawdowns.',type:'neutral',impact:'neutral'},
+  {date:'2025-01',price:565,label:'2025 Peak $565',desc:'New year optimism. TAO briefly peaks at $565 before broader market turns bearish.',type:'bull',impact:'positive'},
+  {date:'2025-02',price:324,label:'dTAO / Dynamic TAO Launch',desc:'Major protocol upgrade: subnets get their own tokens (alpha). Massive structural change to tokenomics.',type:'launch',impact:'positive'},
+  {date:'2025-05',price:467,label:'AI Sector Revival',desc:'Renewed AI narrative pushes TAO back to $467. Subnet ecosystem matures with revenue-generating subnets.',type:'bull',impact:'positive'},
+  {date:'2025-10',price:200,label:'Macro Bear + Alt Bleed',desc:'Broad altcoin weakness. TAO drops below $200 as risk-off sentiment dominates. Yearly low.',type:'bear',impact:'negative'},
+  {date:'2025-11',price:506,label:'Sharp V-Recovery',desc:'TAO rebounds 150% from October lows. Chutes (SN64) becomes #1 subnet. 128 subnet cap reached.',type:'bull',impact:'positive'},
+  {date:'2025-12',price:270,label:'First Halving',desc:'TAO halving cuts emissions from 7,200 to 3,600 TAO/day. Supply shock narrative builds. Price volatile.',type:'launch',impact:'positive'},
+  {date:'2026-01',price:223,label:'Post-Halving Drift',desc:'Market digests halving. Grayscale files for Bittensor Trust. TAO consolidates in $170-$235 range.',type:'neutral',impact:'neutral'},
+  {date:'2026-03',price:185,label:'Current Price ~$185',desc:'TAO at ~$185. 128 subnets active. Post-halving supply squeeze ongoing. Institutional products pending.',type:'neutral',impact:'neutral'},
+];
+
+function drawHistory(){
+  const canvas=g('histCanvas');
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*2;canvas.height=rect.height*2;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);
+  const W=rect.width,H=rect.height;
+  const LEFT=50,RIGHT=15,TOP=15,BOT=25;
+  const cs=getComputedStyle(document.documentElement);
+  
+  const data=TAO_HISTORY;
+  const prices=data.map(d=>d.price);
+  const yMin=Math.min(...prices)*0.85;
+  const yMax=Math.max(...prices)*1.1;
+  const xScale=i=>LEFT+(i/(data.length-1))*(W-LEFT-RIGHT);
+  const yScale=p=>TOP+((yMax-p)/(yMax-yMin))*(H-TOP-BOT);
+  
+  // Grid lines
+  ctx.strokeStyle=cs.getPropertyValue('--border').trim();ctx.lineWidth=0.3;
+  for(let i=0;i<=4;i++){
+    const p=yMin+(yMax-yMin)*(i/4);
+    ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(LEFT,yScale(p));ctx.lineTo(W-RIGHT,yScale(p));ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=cs.getPropertyValue('--text3').trim();ctx.font='8px JetBrains Mono';ctx.textAlign='right';
+    ctx.fillText('$'+Math.round(p),LEFT-4,yScale(p)+3);
+  }
+  
+  // Price line
+  ctx.strokeStyle=cs.getPropertyValue('--tau').trim();ctx.lineWidth=2;ctx.beginPath();
+  data.forEach((d,i)=>{const x=xScale(i),y=yScale(d.price);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.stroke();
+  
+  // Fill under
+  ctx.globalAlpha=0.08;ctx.fillStyle=cs.getPropertyValue('--tau').trim();
+  ctx.beginPath();ctx.moveTo(xScale(0),yScale(data[0].price));
+  data.forEach((d,i)=>ctx.lineTo(xScale(i),yScale(d.price)));
+  ctx.lineTo(xScale(data.length-1),H-BOT);ctx.lineTo(xScale(0),H-BOT);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;
+  
+  // Event markers
+  TAO_EVENTS.forEach(ev=>{
+    const idx=data.findIndex(d=>d.date===ev.date);
+    if(idx<0)return;
+    const x=xScale(idx),y=yScale(ev.price);
+    const color=ev.impact==='positive'?cs.getPropertyValue('--green').trim():ev.impact==='negative'?cs.getPropertyValue('--red').trim():cs.getPropertyValue('--amber').trim();
+    // Vertical line
+    ctx.strokeStyle=color;ctx.lineWidth=0.8;ctx.globalAlpha=0.4;ctx.setLineDash([2,2]);
+    ctx.beginPath();ctx.moveTo(x,TOP);ctx.lineTo(x,H-BOT);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+    // Dot
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.strokeStyle=cs.getPropertyValue('--bg').trim();ctx.lineWidth=1.5;ctx.stroke();
+  });
+  
+  // X axis labels (years)
+  ctx.fillStyle=cs.getPropertyValue('--text3').trim();ctx.font='8px JetBrains Mono';ctx.textAlign='center';
+  let lastYear='';
+  data.forEach((d,i)=>{
+    const yr=d.date.split('-')[0];
+    if(yr!==lastYear){ctx.fillText(yr,xScale(i),H-BOT+12);lastYear=yr}
+  });
+  
+  // Build event list HTML
+  let evHTML='<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Key Events Timeline</div>';
+  TAO_EVENTS.forEach(ev=>{
+    const color=ev.impact==='positive'?'var(--green)':ev.impact==='negative'?'var(--red)':'var(--amber)';
+    const icon=ev.type==='bull'?'📈':ev.type==='bear'?'📉':ev.type==='ath'?'🏆':ev.type==='launch'?'🚀':'📌';
+    evHTML+=`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="font-size:14px;flex-shrink:0;margin-top:1px">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px">
+          <span style="font-size:11px;font-weight:700;color:${color}">${ev.label}</span>
+          <span style="font-size:9px;color:var(--text3);flex-shrink:0">${ev.date} · $${ev.price}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text2);line-height:1.5;margin-top:2px">${ev.desc}</div>
+      </div>
+    </div>`;
+  });
+  g('histEventList').innerHTML=evHTML;
+}
+
+// Draw history on load
+setTimeout(drawHistory,100);
+// Redraw on theme change
+const origToggle=toggleTheme;
+toggleTheme=function(){origToggle();setTimeout(drawHistory,50)};
 
 // ============================================================
 //  INIT
