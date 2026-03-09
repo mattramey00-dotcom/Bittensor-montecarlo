@@ -84,20 +84,48 @@ canvas{display:block;width:100%;height:100%}
 .subnet-item.active{color:var(--tau);font-weight:700}
 .subnet-item .pr{font-family:'JetBrains Mono',monospace;color:var(--text2);font-size:11px}
 @media(max-width:500px){.scenario-grid{grid-template-columns:1fr 1fr}.stats{gap:6px}.stat .v{font-size:14px}.canvas-wrap{height:180px}}
+
+/* Mode selector */
+.mode-btn{flex:1;padding:12px;border:none;background:transparent;color:var(--text3);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-bottom:3px solid transparent;transition:.15s;min-height:44px}
+.mode-btn:active{transform:scale(.97)}
+.mode-btn.active{color:var(--tau);border-bottom-color:var(--tau);background:var(--tau-dim)}
+
+/* Collapsible section */
+.collapsible-header{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;margin-bottom:14px;transition:.15s;-webkit-tap-highlight-color:transparent}
+.collapsible-header:hover{border-color:var(--tau)}
+.collapsible-header:active{transform:scale(.995)}
+.collapsible-header .arrow{transition:transform .2s;font-size:12px;color:var(--text3)}
+.collapsible-header.open .arrow{transform:rotate(90deg)}
+.collapsible-header .title{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--tau);text-transform:uppercase;letter-spacing:1px;flex:1}
+.collapsible-header .count{font-size:10px;color:var(--text3);background:var(--surface);padding:2px 8px;border-radius:10px}
+.collapsible-body{display:none}
+.collapsible-body.open{display:block}
 </style>
 </head>
 <body>
 
 <div class="hdr">
   <div>
-    <h1>τ Monte Carlo</h1>
-    <div class="sub">Bittensor Price Simulation Engine</div>
+    <h1>τ TAO Lab</h1>
+    <div class="sub">Bittensor Analysis Suite</div>
   </div>
   <button class="theme-btn" onclick="toggleTheme()"><div class="dot" id="themeD">🌙</div></button>
 </div>
 
+<!-- MODE SELECTOR -->
+<div style="display:flex;border-bottom:2px solid var(--border);background:var(--bg);flex-shrink:0">
+  <button class="mode-btn active" id="modeBtn-mc" onclick="switchMode('mc')">🎲 Monte Carlo</button>
+  <button class="mode-btn" id="modeBtn-bt" onclick="switchMode('bt')">📊 Backtesting</button>
+  <button class="mode-btn" id="modeBtn-dm" onclick="switchMode('dm')">🔧 Data Manager</button>
+</div>
+
 <div class="main">
 <div class="wrap">
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  MONTE CARLO MODE                          -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="mode-mc">
 
 <!-- TOKEN SELECT -->
 <div class="card">
@@ -264,6 +292,7 @@ canvas{display:block;width:100%;height:100%}
     </div>
   </div>
   <div id="tokenInfo" style="font-size:10px;color:var(--text3);line-height:1.5"></div>
+  <div id="livePriceStatus" style="font-size:10px;margin-top:6px"></div>
 </div>
 
 <!-- SCENARIO -->
@@ -386,6 +415,278 @@ canvas{display:block;width:100%;height:100%}
 </div>
 
 </div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  TOOLS (collapsible)                       -->
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="collapsible-header" onclick="toggleToolbox()" id="toolboxHeader">
+  <span class="arrow" id="toolboxArrow">▶</span>
+  <span class="title">🧰 Investment Tools & Calculators</span>
+  <span class="count">6 tools</span>
+</div>
+<div class="collapsible-body" id="toolboxBody">
+
+<!-- POSITION SIZING -->
+<div class="card">
+  <div class="card-t">📐 Position Sizing Calculator</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 Why this matters:</b> The #1 rule of investing is "don't risk more than you can afford to lose." This tool connects your simulation results to a real dollar amount. It answers: <b>"How much should I actually invest?"</b></div>
+  <div class="row">
+    <div class="col"><div class="lbl">Total Portfolio ($)</div><input type="number" id="psPortfolio" value="50000" step="1000" oninput="calcPositionSize()"></div>
+    <div class="col"><div class="lbl">Max % to Risk on TAO</div><input type="number" id="psRiskPct" value="5" min="1" max="50" step="1" oninput="calcPositionSize()"></div>
+    <div class="col"><div class="lbl">Max $ You'd Accept Losing</div><input type="number" id="psMaxLoss" value="2000" step="100" oninput="calcPositionSize()"></div>
+  </div>
+  <div id="psResults" class="stats" style="margin-top:10px"></div>
+  <div id="psInsight"></div>
+</div>
+
+<!-- CORRELATION -->
+<div class="card">
+  <div class="card-t">🔗 Correlation Analysis</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 What is correlation?</b> It measures how closely two assets move together. <b>+1.0</b> = they move in lockstep. <b>0</b> = no relationship. <b>-1.0</b> = they move opposite. If TAO and BTC are highly correlated, holding both doesn't diversify your risk much — you're doubling down on the same bet.</div>
+  <div id="corrContent"></div>
+</div>
+
+<!-- EMISSION SCHEDULE -->
+<div class="card">
+  <div class="card-t">⛏️ TAO Emission & Supply Schedule</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 Why supply matters:</b> Like Bitcoin, TAO has a fixed max supply of <b>21 million</b> tokens and a halving schedule that cuts new emissions every ~4 years. Less new supply hitting the market means existing tokens become scarcer — a potential price catalyst if demand stays constant or grows.</div>
+  <div class="canvas-wrap" style="height:200px"><canvas id="emissionCanvas"></canvas></div>
+  <div id="emissionStats" class="stats" style="margin-top:10px"></div>
+  <div id="emissionInsight"></div>
+</div>
+
+<!-- STAKING CALCULATOR -->
+<div class="card">
+  <div class="card-t">🥩 Staking Yield Calculator</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 How staking works:</b> You can stake TAO to a <b>validator</b> (earn base TAO yield ~2-4% APY) or to a <b>subnet</b> (earn subnet alpha, often higher APY but with more risk). Subnet staking converts your TAO to "alpha" tokens — if the subnet grows, alpha appreciates on top of the yield. If it shrinks, alpha loses value even with staking rewards.</div>
+  <div class="row">
+    <div class="col">
+      <div class="lbl">Staking Target</div>
+      <select id="stakeTarget" onchange="updateStakeUI()">
+        <option value="validator">TAO → Validator (Base Yield)</option>
+        <optgroup label="Top Subnets (Higher Risk/Reward)">
+          <option value="sn64">SN64 — Chutes</option>
+          <option value="sn51">SN51 — Lium</option>
+          <option value="sn62">SN62 — Ridges AI</option>
+          <option value="sn4">SN4 — Targon</option>
+          <option value="sn9">SN9 — IOTA</option>
+          <option value="sn8">SN8 — Vanta</option>
+          <option value="sn13">SN13 — Data Universe</option>
+          <option value="sn6">SN6 — Numinous</option>
+          <option value="sn12">SN12 — ComputeHorde</option>
+          <option value="sn1">SN1 — Apex</option>
+        </optgroup>
+        <option value="custom">Custom APY</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col"><div class="lbl">TAO to Stake</div><input type="number" id="stakeAmt" value="10" step="1" oninput="calcStaking()"></div>
+    <div class="col"><div class="lbl">APY (%)</div><input type="number" id="stakeApy" value="2.6" step="0.1" oninput="calcStaking()"></div>
+    <div class="col"><div class="lbl">Years</div><input type="number" id="stakeYears" value="3" min="1" max="10" step="1" oninput="calcStaking()"></div>
+  </div>
+  <div id="stakeTargetInfo" style="margin-bottom:10px"></div>
+  <div id="stakeResults"></div>
+</div>
+
+<!-- DCA FORWARD PLANNER -->
+<div class="card">
+  <div class="card-t">📅 DCA Forward Planner</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 Planning ahead:</b> This combines a real DCA plan with Monte Carlo percentiles. Instead of backtesting the past, it shows what your weekly investment could become across the range of simulated futures. Run a simulation above first, then this uses those results.</div>
+  <div class="row">
+    <div class="col"><div class="lbl">Weekly Investment ($)</div><input type="number" id="dcaWeekly" value="100" min="10" step="10" oninput="calcDcaPlan()"></div>
+    <div class="col"><div class="lbl">Duration (months)</div><input type="number" id="dcaMonths" value="12" min="1" max="60" step="1" oninput="calcDcaPlan()"></div>
+  </div>
+  <div id="dcaPlanResults"></div>
+</div>
+
+<!-- SUBNET ALPHA vs TAO -->
+<div class="card">
+  <div class="card-t">⚡ Subnet Alpha vs TAO Analyzer</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 What is subnet alpha?</b> Since dTAO launched (Feb 2025), each subnet has its own token called "alpha." When you stake to a subnet, you hold alpha instead of raw TAO. If a subnet grows its share of emissions, alpha can outperform TAO. If it shrinks, alpha underperforms. This tool models that relationship.</div>
+  <div class="row">
+    <div class="col"><div class="lbl">Subnet Current Emission Share (%)</div><input type="number" id="snCurShare" value="1" step="0.1" min="0.1" max="10" oninput="calcSubnetAlpha()"></div>
+    <div class="col"><div class="lbl">Projected Emission Share (%)</div><input type="number" id="snFutShare" value="3" step="0.1" min="0.1" max="15" oninput="calcSubnetAlpha()"></div>
+  </div>
+  <div class="row">
+    <div class="col"><div class="lbl">TAO Staked to Subnet</div><input type="number" id="snStakeAmt" value="10" step="1" oninput="calcSubnetAlpha()"></div>
+    <div class="col"><div class="lbl">Timeframe (months)</div><input type="number" id="snMonths" value="12" min="1" max="36" step="1" oninput="calcSubnetAlpha()"></div>
+  </div>
+  <div id="snAlphaResults"></div>
+</div>
+
+</div><!-- end collapsible toolbox body -->
+
+</div><!-- end mode-mc -->
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  BACKTESTING MODE                          -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="mode-bt" style="display:none">
+
+<!-- BACKTEST SETUP -->
+<div class="card">
+  <div class="card-t">📊 Backtest Configuration</div>
+  <div class="note" style="margin-bottom:12px">
+    <b>📖 What is backtesting?</b> Unlike Monte Carlo which simulates random futures, backtesting applies a strategy to <b>actual historical prices</b>. It answers: "If I had done X, what would have happened?" There's only one answer because there's only one history. This tests strategies against reality — not probability.
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="lbl">Strategy</div>
+      <select id="btStrategy" onchange="updateBtUI()">
+        <option value="dca">DCA (Dollar Cost Average)</option>
+        <option value="lump">Lump Sum Buy</option>
+        <option value="buydip">Buy the Dip</option>
+        <option value="ma">Moving Average Crossover</option>
+      </select>
+    </div>
+    <div class="col">
+      <div class="lbl">Start Date</div>
+      <select id="btStart">
+        <option value="2023-03">Mar 2023 (Launch)</option>
+        <option value="2023-06">Jun 2023</option>
+        <option value="2023-12">Dec 2023</option>
+        <option value="2024-01" selected>Jan 2024</option>
+        <option value="2024-06">Jun 2024</option>
+        <option value="2025-01">Jan 2025</option>
+        <option value="2025-06">Jun 2025</option>
+      </select>
+    </div>
+  </div>
+  <div id="btParams"></div>
+  <div style="text-align:center;margin-top:12px">
+    <button class="btn" onclick="runBacktest()">▶ Run Backtest</button>
+  </div>
+</div>
+
+<!-- STRATEGY EXPLAINER -->
+<div class="card" id="btExplainCard">
+  <div class="card-t">📖 Strategy Explained</div>
+  <div id="btExplain"></div>
+</div>
+
+<!-- BACKTEST RESULTS -->
+<div class="card" id="btResultsCard" style="display:none">
+  <div class="card-t">📈 Backtest Results</div>
+  <div class="stats" id="btStats"></div>
+  <div class="canvas-wrap" style="height:260px"><canvas id="btCanvas"></canvas></div>
+  <div class="legend" id="btLegend"></div>
+  <div id="btInsight"></div>
+</div>
+
+<!-- TRADE LOG -->
+<div class="card" id="btTradesCard" style="display:none">
+  <div class="card-t">📋 Trade Log</div>
+  <div id="btTradeLog" style="max-height:300px;overflow-y:auto"></div>
+</div>
+
+<!-- COMPARISON -->
+<div class="card" id="btCompCard" style="display:none">
+  <div class="card-t">⚖️ Strategy vs Buy & Hold</div>
+  <div id="btCompContent"></div>
+  <div class="note" style="margin-top:10px">
+    <b>⚠️ Reminder:</b> Backtesting uses historical data only. Past performance does not guarantee future results. TAO has only ~3 years of history — a very short sample. Strategies that worked in this period may not work in different market conditions.
+  </div>
+</div>
+
+</div><!-- end mode-bt -->
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  DATA MANAGER MODE                         -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="mode-dm" style="display:none">
+
+<!-- DATA FRESHNESS -->
+<div class="card" style="border-top-color:var(--amber)">
+  <div class="card-t" style="color:var(--amber)">⚠️ Data Freshness</div>
+  <div id="dmFreshness"></div>
+</div>
+
+<!-- FETCH LATEST -->
+<div class="card" style="border-top-color:var(--green)">
+  <div class="card-t" style="color:var(--green)">📡 Fetch Latest Price</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 How it works:</b> Tapping "Fetch" grabs the current TAO price from CoinGecko and adds it as a new data point for the current month. If this month already has a data point, it updates the price. Your historical chart and backtesting will use this new data.</div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn" onclick="dmFetchAndAdd()">📡 Fetch Current TAO Price & Add</button>
+    <span id="dmFetchStatus" style="font-size:11px;color:var(--text3)"></span>
+  </div>
+</div>
+
+<!-- ADD PRICE POINT -->
+<div class="card">
+  <div class="card-t">📈 Add/Edit Price Point</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 When to use:</b> Add a monthly price manually if you want to fill in a gap or correct a value. The app uses one price per month — the approximate closing price or an average.</div>
+  <div class="row">
+    <div class="col"><div class="lbl">Month (YYYY-MM)</div><input type="text" id="dmPriceDate" placeholder="2026-04" style="font-family:'JetBrains Mono',monospace;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;width:100%"></div>
+    <div class="col"><div class="lbl">Price ($)</div><input type="number" id="dmPriceVal" placeholder="200" step="0.01" style="width:100%"></div>
+    <div class="col" style="display:flex;align-items:flex-end"><button class="btn" onclick="dmAddPrice()">+ Add Price</button></div>
+  </div>
+</div>
+
+<!-- ADD EVENT -->
+<div class="card">
+  <div class="card-t">📌 Add Event / Catalyst</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 When to use:</b> Record major events that moved the price — listings, hacks, halvings, partnerships, regulatory news. These appear on the historical chart as colored markers and in the event timeline.</div>
+  <div class="row">
+    <div class="col"><div class="lbl">Month (YYYY-MM)</div><input type="text" id="dmEvtDate" placeholder="2026-04" style="font-family:'JetBrains Mono',monospace;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;width:100%"></div>
+    <div class="col"><div class="lbl">Price at Event ($)</div><input type="number" id="dmEvtPrice" placeholder="200" step="0.01" style="width:100%"></div>
+  </div>
+  <div class="row">
+    <div class="col"><div class="lbl">Event Label</div><input type="text" id="dmEvtLabel" placeholder="e.g. Grayscale ETF Approved" style="font-family:inherit;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;width:100%"></div>
+  </div>
+  <div class="row">
+    <div class="col"><div class="lbl">Description</div><input type="text" id="dmEvtDesc" placeholder="Short description of what happened and why it mattered" style="font-family:inherit;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;width:100%"></div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="lbl">Impact</div>
+      <select id="dmEvtImpact" style="width:100%">
+        <option value="positive">📈 Positive (Bullish)</option>
+        <option value="negative">📉 Negative (Bearish)</option>
+        <option value="neutral">📌 Neutral</option>
+      </select>
+    </div>
+    <div class="col">
+      <div class="lbl">Type</div>
+      <select id="dmEvtType" style="width:100%">
+        <option value="bull">Bull Catalyst</option>
+        <option value="bear">Bear Catalyst</option>
+        <option value="launch">Launch / Upgrade</option>
+        <option value="ath">All-Time High</option>
+        <option value="neutral">Neutral / Info</option>
+      </select>
+    </div>
+    <div class="col" style="display:flex;align-items:flex-end"><button class="btn" onclick="dmAddEvent()">+ Add Event</button></div>
+  </div>
+</div>
+
+<!-- CURRENT DATA -->
+<div class="card">
+  <div class="card-t">📋 Current Price Data (<span id="dmPriceCount">0</span> points)</div>
+  <div id="dmPriceList" style="max-height:300px;overflow-y:auto"></div>
+</div>
+
+<div class="card">
+  <div class="card-t">📋 Current Events (<span id="dmEventCount">0</span> events)</div>
+  <div id="dmEventList" style="max-height:300px;overflow-y:auto"></div>
+</div>
+
+<!-- EXPORT / IMPORT -->
+<div class="card">
+  <div class="card-t">💾 Export / Import Data</div>
+  <div class="note" style="margin-bottom:12px"><b>📖 Backup your data:</b> Export saves all your price history and events as a JSON file. Import loads it back. Use this to transfer data between devices or back up before clearing.</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" onclick="dmExport()">📤 Export JSON</button>
+    <button class="btn btn-ghost" onclick="g('dmImportFile').click()">📥 Import JSON</button>
+    <input type="file" id="dmImportFile" accept=".json" style="display:none" onchange="dmImport(event)">
+    <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red)" onclick="dmReset()">🗑️ Reset to Defaults</button>
+  </div>
+</div>
+
+</div><!-- end mode-dm -->
+
+</div>
 </div>
 
 <script>
@@ -401,6 +702,72 @@ function toggleTheme(){
 };
 
 ;(function(){const s=localStorage.getItem('tao-mc-theme');if(s==='light'){document.documentElement.setAttribute('data-theme','light');document.getElementById('themeColorMeta').content='#f4f6fa';setTimeout(function(){document.getElementById('themeD').textContent='☀️'},0);}})();
+
+// ============================================================
+//  LIVE PRICE FETCHING (CoinGecko Free API)
+// ============================================================
+let livePrices = {};
+let priceLastFetched = 0;
+
+async function fetchLivePrices() {
+  const status = g('livePriceStatus');
+  status.innerHTML = '<span style="color:var(--amber)">⏳ Fetching live prices...</span>';
+  
+  try {
+    // CoinGecko free API — no key needed, CORS enabled, 30 calls/min
+    const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bittensor,bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true&include_market_cap=true');
+    if (!resp.ok) throw new Error('API returned ' + resp.status);
+    const data = await resp.json();
+    
+    if (data.bittensor) {
+      livePrices.tao = data.bittensor.usd;
+      livePrices.taoChange = data.bittensor.usd_24h_change;
+      livePrices.taoMcap = data.bittensor.usd_market_cap;
+    }
+    if (data.bitcoin) {
+      livePrices.btc = data.bitcoin.usd;
+      livePrices.btcChange = data.bitcoin.usd_24h_change;
+    }
+    if (data.ethereum) {
+      livePrices.eth = data.ethereum.usd;
+      livePrices.ethChange = data.ethereum.usd_24h_change;
+    }
+    
+    priceLastFetched = Date.now();
+    
+    // Update TAO price input if TAO is selected
+    const sel = g('tokenSelect').value;
+    if (sel === 'TAO' && livePrices.tao) {
+      g('priceInput').value = livePrices.tao.toFixed(2);
+      TOKENS.TAO.price = livePrices.tao;
+      if (livePrices.taoMcap) TOKENS.TAO.mcap = '$' + (livePrices.taoMcap / 1e9).toFixed(2) + 'B';
+    }
+    
+    // Show status
+    const taoChg = livePrices.taoChange ? (livePrices.taoChange >= 0 ? '+' : '') + livePrices.taoChange.toFixed(1) + '%' : '';
+    const taoColor = livePrices.taoChange >= 0 ? 'var(--green)' : 'var(--red)';
+    const btcStr = livePrices.btc ? ' · ₿ BTC $' + livePrices.btc.toLocaleString(undefined,{maximumFractionDigits:0}) : '';
+    const ethStr = livePrices.eth ? ' · Ξ ETH $' + livePrices.eth.toLocaleString(undefined,{maximumFractionDigits:0}) : '';
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    
+    status.innerHTML = `<span style="color:var(--green)">🟢 Live</span> <span style="color:var(--tau);font-weight:700;font-family:'JetBrains Mono',monospace">τ $${livePrices.tao?.toFixed(2)||'--'}</span> <span style="color:${taoColor};font-size:9px">${taoChg}</span><span style="color:var(--text3)">${btcStr}${ethStr} · Updated ${time}</span>`;
+    
+    updateUI();
+    
+  } catch (err) {
+    console.warn('Live price fetch failed:', err.message);
+    status.innerHTML = '<span style="color:var(--text3)">⚪ Using hardcoded prices (live fetch failed — try refreshing)</span>';
+  }
+};
+
+// Fetch on load, then every 60 seconds
+setTimeout(fetchLivePrices, 500);
+setInterval(function() {
+  // Only refetch if tab is visible and it's been >55 seconds
+  if (!document.hidden && Date.now() - priceLastFetched > 55000) {
+    fetchLivePrices();
+  }
+}, 60000);
 
 // ============================================================
 //  TOKEN DATA
@@ -486,8 +853,10 @@ function pickScenario(id){
   buildScenarios();updateUI();
 }
 function onTokenChange(){
-  const t=getTokenData(g('tokenSelect').value);
-  g('priceInput').value=t.price;
+  const sel=g('tokenSelect').value;
+  const t=getTokenData(sel);
+  if(sel==='TAO'&&livePrices.tao){g('priceInput').value=livePrices.tao.toFixed(2)}
+  else{g('priceInput').value=t.price}
   g('volSlider').value=t.vol;
   updateUI();
 }
@@ -657,6 +1026,10 @@ function renderResults(){
   drawPaths();
   drawDist();
   renderProb();
+  
+  // Update tools that depend on simulation results
+  calcPositionSize();
+  calcDcaPlan();
   
   // Scroll to results
   g('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});
@@ -961,9 +1334,703 @@ function renderProb(){
 }
 
 // ============================================================
+//  POSITION SIZING CALCULATOR
+// ============================================================
+function calcPositionSize(){
+  const portfolio=parseFloat(g('psPortfolio').value)||50000;
+  const riskPct=parseFloat(g('psRiskPct').value)||5;
+  const maxLoss=parseFloat(g('psMaxLoss').value)||2000;
+  const price=parseFloat(g('priceInput').value)||185;
+  
+  const fromPct=portfolio*(riskPct/100);
+  const fromLoss=simResults?maxLoss/((simResults.S0-percentile(simResults.finalPrices,5))/simResults.S0):maxLoss*2;
+  const recommended=Math.min(fromPct,fromLoss);
+  const tokens=recommended/price;
+  
+  g('psResults').innerHTML=`
+    <div class="stat"><div class="k">From % Rule</div><div class="v" style="color:var(--tau)">$${fromPct.toFixed(0)}</div><div class="s">${riskPct}% of $${portfolio.toLocaleString()}</div></div>
+    <div class="stat"><div class="k">From Loss Limit</div><div class="v" style="color:var(--amber)">$${fromLoss.toFixed(0)}</div><div class="s">${simResults?'Based on 5th pctl drawdown':'Run sim first'}</div></div>
+    <div class="stat"><div class="k">Recommended</div><div class="v" style="color:var(--green)">$${recommended.toFixed(0)}</div><div class="s">${tokens.toFixed(2)} TAO</div></div>`;
+  
+  g('psInsight').innerHTML=`<div class="note" style="margin-top:10px;background:var(--tau-dim);border-left:3px solid var(--tau)">
+    <b style="color:var(--tau)">💡 Recommendation:</b> Based on your $${portfolio.toLocaleString()} portfolio and $${maxLoss.toLocaleString()} max acceptable loss, consider investing no more than <b>$${recommended.toFixed(0)}</b> (~${tokens.toFixed(2)} TAO). This keeps TAO at <b>${(recommended/portfolio*100).toFixed(1)}%</b> of your portfolio. ${recommended/portfolio>0.1?'That\'s a significant allocation — make sure you\'re comfortable with the volatility.':'A conservative allocation that limits your downside exposure.'} ${simResults?`In the worst 5% of your simulation, this position would lose about $${(recommended*Math.abs((percentile(simResults.finalPrices,5)-simResults.S0)/simResults.S0)).toFixed(0)}.`:''}
+  </div>`;
+};
+
+// ============================================================
+//  CORRELATION ANALYSIS
+// ============================================================
+function buildCorrelation(){
+  // Historical monthly returns approximated from known data
+  const taoReturns=[-0.49,0.06,0.61,0.72,-0.30,-0.08,-0.02,0.65,3.26,0.37,0.28,0.14,-0.21,-0.22,-0.12,-0.57,1.33,0.32,-0.19,0.50,0.28,-0.09,0.22,-0.08,-0.31,-0.28,1.16,1.53,-0.47,-0.17,0.03];
+  const btcReturns=[0.03,0.12,0.04,0.13,0.07,-0.10,0.03,-0.08,-0.04,0.10,0.07,0.44,-0.02,-0.09,-0.15,-0.07,0.12,-0.05,0.08,-0.03,-0.01,0.06,0.10,0.38,-0.05,-0.15,-0.12,0.08,-0.10,-0.04,0.02];
+  const ethReturns=[0.02,0.04,0.03,0.16,0.01,-0.15,-0.01,-0.06,-0.08,0.09,0.02,0.25,-0.04,-0.18,-0.20,-0.10,0.08,-0.08,0.05,-0.05,-0.05,0.10,0.13,0.47,-0.08,-0.20,-0.15,0.10,-0.12,-0.06,0.01];
+  
+  const corr=(a,b)=>{
+    const n=Math.min(a.length,b.length);
+    const ma=a.slice(0,n).reduce((s,v)=>s+v,0)/n;
+    const mb=b.slice(0,n).reduce((s,v)=>s+v,0)/n;
+    let num=0,da=0,db=0;
+    for(let i=0;i<n;i++){num+=(a[i]-ma)*(b[i]-mb);da+=(a[i]-ma)**2;db+=(b[i]-mb)**2;}
+    return da&&db?num/Math.sqrt(da*db):0;
+  };
+  
+  const taoBtc=corr(taoReturns,btcReturns);
+  const taoEth=corr(taoReturns,ethReturns);
+  const btcEth=corr(btcReturns,ethReturns);
+  
+  const corrBar=(val,label,asset)=>{
+    const pct=Math.abs(val)*100;
+    const color=val>0.7?'var(--red)':val>0.4?'var(--amber)':'var(--green)';
+    const strength=Math.abs(val)>0.7?'Strong':Math.abs(val)>0.4?'Moderate':'Weak';
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span style="color:var(--text2)">TAO ↔ ${asset}</span>
+        <span style="font-weight:700;font-family:'JetBrains Mono',monospace;color:${color}">${val.toFixed(2)} (${strength})</span>
+      </div>
+      <div class="pct-bar"><div class="fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  };
+  
+  g('corrContent').innerHTML=
+    corrBar(taoBtc,'TAO-BTC','Bitcoin')+
+    corrBar(taoEth,'TAO-ETH','Ethereum')+
+    `<div class="note" style="margin-top:10px;background:var(--amber-dim);border-left:3px solid var(--amber)">
+      <b style="color:var(--amber)">💡 What this means:</b> TAO has a <b>${Math.abs(taoBtc)>0.5?'meaningful':'moderate'}</b> correlation with Bitcoin (${taoBtc.toFixed(2)}). ${Math.abs(taoBtc)>0.6?'This means TAO tends to move in the same direction as BTC — when BTC dumps, TAO likely dumps too. Holding both doesn\'t diversify your crypto risk much.':'TAO has some independence from BTC, meaning it can move on its own catalysts (subnet growth, AI narrative) even when BTC is flat.'} TAO's correlation with ETH is ${Math.abs(taoEth).toFixed(2)} — ${Math.abs(taoEth)>Math.abs(taoBtc)?'actually stronger than with BTC, suggesting TAO trades more like an altcoin/tech play.':'slightly weaker, suggesting TAO has its own narrative drivers beyond general alt sentiment.'}
+    </div>`;
+};
+
+// ============================================================
+//  EMISSION SCHEDULE
+// ============================================================
+function drawEmissions(){
+  const canvas=g('emissionCanvas');
+  if(!canvas)return;
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*2;canvas.height=rect.height*2;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);
+  const W=rect.width,H=rect.height;
+  const LEFT=50,RIGHT=15,TOP=15,BOT=30;
+  const cs=getComputedStyle(document.documentElement);
+  
+  // TAO emission schedule (mirrors BTC): halving every ~4 years
+  // Started ~2021, first halving Dec 2025
+  const halvings=[
+    {year:2021,daily:7200,cumStart:0},
+    {year:2025.95,daily:3600,cumStart:0},// post-halving 1
+    {year:2029.95,daily:1800,cumStart:0},
+    {year:2033.95,daily:900,cumStart:0},
+    {year:2037.95,daily:450,cumStart:0},
+  ];
+  
+  // Build supply curve
+  const points=[];
+  let supply=0;
+  for(let year=2021;year<=2042;year+=0.25){
+    let dailyRate=7200;
+    if(year>=2025.95)dailyRate=3600;
+    if(year>=2029.95)dailyRate=1800;
+    if(year>=2033.95)dailyRate=900;
+    if(year>=2037.95)dailyRate=450;
+    supply+=dailyRate*91.25; // quarter year in days
+    if(supply>21000000)supply=21000000;
+    points.push({year,supply,dailyRate});
+  }
+  
+  const xScale=yr=>LEFT+((yr-2021)/(2042-2021))*(W-LEFT-RIGHT);
+  const yScale=s=>TOP+((21000000-s)/21000000)*(H-TOP-BOT);
+  
+  // Grid
+  ctx.strokeStyle=cs.getPropertyValue('--border').trim();ctx.lineWidth=0.3;
+  ctx.fillStyle=cs.getPropertyValue('--text3').trim();ctx.font='8px JetBrains Mono';
+  for(let i=0;i<=4;i++){
+    const s=i*5250000;
+    ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(LEFT,yScale(s));ctx.lineTo(W-RIGHT,yScale(s));ctx.stroke();ctx.setLineDash([]);
+    ctx.textAlign='right';ctx.fillText((s/1000000).toFixed(1)+'M',LEFT-4,yScale(s)+3);
+  }
+  // X axis years
+  ctx.textAlign='center';
+  for(let yr=2022;yr<=2042;yr+=4){ctx.fillText(yr.toString(),xScale(yr),H-BOT+12);}
+  
+  // Supply curve
+  ctx.strokeStyle=cs.getPropertyValue('--tau').trim();ctx.lineWidth=2;ctx.beginPath();
+  points.forEach((p,i)=>{i===0?ctx.moveTo(xScale(p.year),yScale(p.supply)):ctx.lineTo(xScale(p.year),yScale(p.supply))});
+  ctx.stroke();
+  
+  // Fill
+  ctx.globalAlpha=0.08;ctx.fillStyle=cs.getPropertyValue('--tau').trim();ctx.beginPath();
+  ctx.moveTo(xScale(2021),yScale(0));
+  points.forEach(p=>ctx.lineTo(xScale(p.year),yScale(p.supply)));
+  ctx.lineTo(xScale(2042),yScale(0));ctx.closePath();ctx.fill();ctx.globalAlpha=1;
+  
+  // 21M cap line
+  ctx.strokeStyle=cs.getPropertyValue('--amber').trim();ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(LEFT,yScale(21000000));ctx.lineTo(W-RIGHT,yScale(21000000));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=cs.getPropertyValue('--amber').trim();ctx.font='bold 8px JetBrains Mono';ctx.textAlign='left';
+  ctx.fillText('21M CAP',LEFT+4,yScale(21000000)-4);
+  
+  // Current marker
+  const nowYear=2026.2;
+  const nowSupply=10700000;
+  ctx.beginPath();ctx.arc(xScale(nowYear),yScale(nowSupply),5,0,Math.PI*2);
+  ctx.fillStyle=cs.getPropertyValue('--green').trim();ctx.fill();
+  ctx.fillStyle=cs.getPropertyValue('--green').trim();ctx.font='bold 8px JetBrains Mono';
+  ctx.fillText('NOW',xScale(nowYear)+8,yScale(nowSupply)+3);
+  
+  // Halving markers
+  [2025.95,2029.95,2033.95,2037.95].forEach((yr,i)=>{
+    ctx.strokeStyle=cs.getPropertyValue('--red').trim();ctx.lineWidth=1;ctx.globalAlpha=0.5;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(xScale(yr),TOP);ctx.lineTo(xScale(yr),H-BOT);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+    ctx.fillStyle=cs.getPropertyValue('--red').trim();ctx.font='7px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('H'+(i+1),xScale(yr),TOP-2);
+  });
+  
+  // Stats
+  const pctMined=(10700000/21000000*100).toFixed(1);
+  const remaining=21000000-10700000;
+  g('emissionStats').innerHTML=`
+    <div class="stat"><div class="k">Circulating</div><div class="v" style="color:var(--tau)">10.7M</div><div class="s">${pctMined}% of max</div></div>
+    <div class="stat"><div class="k">Daily Emission</div><div class="v" style="color:var(--amber)">3,600</div><div class="s">Post-halving 1</div></div>
+    <div class="stat"><div class="k">Next Halving</div><div class="v" style="color:var(--red)">~2030</div><div class="s">→ 1,800/day</div></div>
+    <div class="stat"><div class="k">Remaining</div><div class="v" style="color:var(--text)">${(remaining/1000000).toFixed(1)}M</div><div class="s">${(100-parseFloat(pctMined)).toFixed(1)}% to mine</div></div>`;
+  
+  g('emissionInsight').innerHTML=`<div class="note" style="margin-top:10px;background:var(--green-dim);border-left:3px solid var(--green)">
+    <b style="color:var(--green)">💡 Supply Squeeze:</b> After the Dec 2025 halving, only <b>3,600 TAO/day</b> enter circulation (was 7,200). At today's price (~$185), that's ~$666K/day of new supply vs ~$100M+ daily trading volume. The sell pressure from new emissions is relatively small. Each subsequent halving (2030, 2034, 2038) cuts it further. By 2030, ~80% of all TAO will be mined. This deflationary schedule is one of TAO's strongest fundamental bull cases.
+  </div>`;
+};
+
+// ============================================================
+//  STAKING CALCULATOR
+// ============================================================
+const STAKE_TARGETS={
+  validator:{name:'TAO Validator',apy:2.6,alphaRisk:false,desc:'Stake TAO to a validator. You earn TAO directly. Lowest risk staking option. APY is modest but stable.'},
+  sn64:{name:'Chutes (SN64)',apy:8,alphaRisk:true,desc:'#1 subnet by value. High demand for serverless AI compute. Alpha has been relatively stable due to high staking volume. APY higher than base TAO but alpha price fluctuates.'},
+  sn51:{name:'Lium (SN51)',apy:12,alphaRisk:true,desc:'GPU marketplace subnet. Moderate staking volume means higher APY but more alpha price volatility.'},
+  sn62:{name:'Ridges AI (SN62)',apy:15,alphaRisk:true,desc:'Agent training subnet. Growing fast with VC backing. Higher APY reflects smaller stake pool — more reward but more risk of alpha depreciation if the subnet underperforms.'},
+  sn4:{name:'Targon (SN4)',apy:10,alphaRisk:true,desc:'Multimodal compute by Manifold Labs. Established subnet with moderate APY and alpha risk.'},
+  sn9:{name:'IOTA (SN9)',apy:9,alphaRisk:true,desc:'LLM pretraining by Macrocosmos. Solid fundamentals. Moderate APY.'},
+  sn8:{name:'Vanta (SN8)',apy:11,alphaRisk:true,desc:'Prop trading signals by Taoshi. Revenue-generating subnet with moderate APY.'},
+  sn13:{name:'Data Universe (SN13)',apy:14,alphaRisk:true,desc:'Data storage subnet. Smaller stake pool = higher APY but more volatile alpha.'},
+  sn6:{name:'Numinous (SN6)',apy:18,alphaRisk:true,desc:'Forecasting subnet. Newer, smaller, higher APY but significant alpha risk. Scored via Brier metrics.'},
+  sn12:{name:'ComputeHorde (SN12)',apy:10,alphaRisk:true,desc:'Trusted GPU compute. Established infrastructure subnet with moderate risk/reward.'},
+  sn1:{name:'Apex (SN1)',apy:7,alphaRisk:true,desc:'LLM inference by Macrocosmos. One of the largest subnets. Lower APY but more stable alpha.'},
+  custom:{name:'Custom',apy:10,alphaRisk:true,desc:'Enter your own APY. Use this for any subnet not listed.'},
+};
+
+function updateStakeUI(){
+  const target=g('stakeTarget').value;
+  const data=STAKE_TARGETS[target];
+  if(target!=='custom') g('stakeApy').value=data.apy;
+  
+  const riskColor=data.alphaRisk?'var(--amber)':'var(--green)';
+  const riskLabel=data.alphaRisk?'⚠️ Alpha Risk — your tokens convert to subnet alpha which can gain or lose value independently of TAO':'✅ Low Risk — you earn TAO directly, no alpha conversion';
+  
+  g('stakeTargetInfo').innerHTML=`
+    <div class="note" style="background:${data.alphaRisk?'var(--amber-dim)':'var(--green-dim)'};border-left:3px solid ${riskColor}">
+      <b style="color:${riskColor}">${data.name}</b> — ${data.desc}<br>
+      <span style="font-size:10px;color:${riskColor}">${riskLabel}</span>
+    </div>`;
+  
+  calcStaking();
+};
+
+function calcStaking(){
+  const target=g('stakeTarget').value;
+  const data=STAKE_TARGETS[target];
+  const amt=parseFloat(g('stakeAmt').value)||10;
+  const apy=parseFloat(g('stakeApy').value)||2.6;
+  const years=parseInt(g('stakeYears').value)||3;
+  const price=parseFloat(g('priceInput').value)||185;
+  const isAlpha=data.alphaRisk;
+  
+  const compounded=amt*Math.pow(1+apy/100,years);
+  const earned=compounded-amt;
+  
+  // For subnets, model alpha price scenarios differently
+  const scenarios=isAlpha?[
+    {label:'Alpha crashes (-70%)',priceMult:0.3,color:'var(--red)',note:'Subnet loses emission share or gets deregistered'},
+    {label:'Alpha declines (-30%)',priceMult:0.7,color:'var(--amber)',note:'Subnet underperforms, stakers leave'},
+    {label:'TAO flat + Alpha flat',priceMult:1.0,color:'var(--text2)',note:'Alpha holds value relative to TAO'},
+    {label:'Alpha grows (+50%)',priceMult:1.5,color:'var(--tau)',note:'Subnet gains emission share'},
+    {label:'TAO 2x + Alpha grows',priceMult:3.0,color:'var(--green)',note:'TAO doubles AND subnet alpha appreciates'},
+    {label:'TAO 2x + Alpha 3x',priceMult:6.0,color:'var(--blue)',note:'Best case: TAO rallies + subnet becomes top tier'},
+  ]:[
+    {label:'Bear (-50%)',priceMult:0.5,color:'var(--red)'},
+    {label:'Flat (0%)',priceMult:1.0,color:'var(--amber)'},
+    {label:'Base (+100%)',priceMult:2.0,color:'var(--tau)'},
+    {label:'Bull (+300%)',priceMult:4.0,color:'var(--green)'},
+  ];
+  
+  let html=`<div class="stats" style="margin-top:10px;margin-bottom:12px">
+    <div class="stat"><div class="k">Start</div><div class="v" style="color:var(--text)">${amt.toFixed(1)} ${isAlpha?'α':'τ'}</div><div class="s">$${(amt*price).toFixed(0)}</div></div>
+    <div class="stat"><div class="k">After ${years}yr</div><div class="v" style="color:var(--tau)">${compounded.toFixed(2)} ${isAlpha?'α':'τ'}</div><div class="s">+${earned.toFixed(2)} from yield</div></div>
+    <div class="stat"><div class="k">${isAlpha?'Alpha':'Staking'} Yield</div><div class="v" style="color:var(--green)">${apy}% APY</div><div class="s">${((earned/amt)*100).toFixed(1)}% total compounded</div></div>
+  </div>`;
+  
+  html+=`<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">${isAlpha?'Alpha + TAO Price Scenarios':'Price Scenarios'}</div>`;
+  html+=`<div class="stats">`;
+  scenarios.forEach(s=>{
+    const futurePrice=price*s.priceMult;
+    const value=compounded*futurePrice;
+    const totalReturn=((value-(amt*price))/(amt*price)*100);
+    html+=`<div class="stat"><div class="k" style="font-size:7px">${s.label}</div><div class="v" style="color:${s.color}">$${value>=1000?Math.round(value).toLocaleString():value.toFixed(0)}</div><div class="s">${totalReturn>=0?'+':''}${totalReturn.toFixed(0)}%${s.note?' · '+s.note:''}</div></div>`;
+  });
+  html+=`</div>`;
+  
+  if(isAlpha){
+    html+=`<div class="note" style="margin-top:10px;background:var(--amber-dim);border-left:3px solid var(--amber)">
+      <b style="color:var(--amber)">⚠️ Subnet Alpha Risk:</b> When you stake to <b>${data.name}</b>, your TAO converts to alpha tokens. The ${apy}% APY earns you more alpha — but alpha's dollar value depends on both TAO's price AND the subnet's emission share. If the subnet loses popularity, your alpha could depreciate even while you're earning yield. In the worst case (deregistration), alpha gets liquidated back to TAO at whatever the pool ratio is — potentially a major loss. <b>Higher APY = higher risk.</b>
+    </div>`;
+    html+=`<div class="note" style="margin-top:8px">
+      <b>📖 Comparing validator vs subnet staking:</b> Staking ${amt} TAO to a validator at 2.6% gives you <b>${(amt*Math.pow(1.026,years)).toFixed(2)} TAO</b> after ${years} years — safe but slow. Staking to ${data.name} at ${apy}% gives <b>${compounded.toFixed(2)} alpha</b> — ${((compounded/amt-1)*100/(amt*Math.pow(1.026,years)/amt-1)*100).toFixed(0)}% more tokens, but with alpha price risk on top. The question is whether the higher yield compensates for the added risk.
+    </div>`;
+  } else {
+    html+=`<div class="note" style="margin-top:10px;background:var(--tau-dim);border-left:3px solid var(--tau)">
+      <b style="color:var(--tau)">💡 Validator Staking:</b> Staking ${amt} TAO at ${apy}% APY gives you <b>${compounded.toFixed(2)} TAO</b> after ${years} years — <b>${earned.toFixed(2)} free TAO</b> from compounding. This is the safest staking option. Your tokens stay as TAO (no alpha conversion), and you earn steady yield regardless of subnet performance. The tradeoff is lower APY compared to subnet staking.
+    </div>`;
+  }
+  
+  g('stakeResults').innerHTML=html;
+};
+
+// ============================================================
+//  DCA FORWARD PLANNER
+// ============================================================
+function calcDcaPlan(){
+  if(!simResults){g('dcaPlanResults').innerHTML='<div class="note">Run a Monte Carlo simulation first — this tool uses those results.</div>';return;}
+  const weekly=parseFloat(g('dcaWeekly').value)||100;
+  const months=parseInt(g('dcaMonths').value)||12;
+  const weeks=months*4;
+  const totalInvested=weekly*weeks;
+  const{pctDays,S0,days}=simResults;
+  
+  // Sample percentile prices at end of DCA period
+  const dcaDayIdx=Math.min(Math.round(months*30.44),days);
+  const endPrices={
+    p5:pctDays[dcaDayIdx]?.p5||S0*0.5,
+    p25:pctDays[dcaDayIdx]?.p25||S0*0.8,
+    p50:pctDays[dcaDayIdx]?.p50||S0,
+    p75:pctDays[dcaDayIdx]?.p75||S0*1.3,
+    p95:pctDays[dcaDayIdx]?.p95||S0*2,
+  };
+  
+  // Estimate DCA tokens (average buy price is roughly the average of start and end)
+  const dcaCalc=(endP)=>{
+    const avgPrice=(S0+endP)/2;
+    const tokens=totalInvested/avgPrice;
+    const value=tokens*endP;
+    return{tokens,value,roi:((value-totalInvested)/totalInvested*100)};
+  };
+  
+  const cases=[
+    {label:'Worst 5%',key:'p5',color:'var(--red)'},
+    {label:'Below Avg',key:'p25',color:'var(--amber)'},
+    {label:'Median',key:'p50',color:'var(--tau)'},
+    {label:'Above Avg',key:'p75',color:'var(--blue)'},
+    {label:'Best 5%',key:'p95',color:'var(--green)'},
+  ];
+  
+  let html=`<div style="font-size:11px;color:var(--text2);margin-bottom:10px">Investing <b>$${weekly}/week</b> for <b>${months} months</b> = <b>$${totalInvested.toLocaleString()}</b> total invested</div>`;
+  html+=`<div class="stats">`;
+  cases.forEach(c=>{
+    const r=dcaCalc(endPrices[c.key]);
+    html+=`<div class="stat"><div class="k">${c.label}</div><div class="v" style="color:${c.color}">$${r.value>=1000?Math.round(r.value).toLocaleString():r.value.toFixed(0)}</div><div class="s">${r.roi>=0?'+':''}${r.roi.toFixed(0)}% · ${r.tokens.toFixed(1)} TAO</div></div>`;
+  });
+  html+=`</div>`;
+  
+  const medResult=dcaCalc(endPrices.p50);
+  html+=`<div class="note" style="margin-top:10px;background:var(--tau-dim);border-left:3px solid var(--tau)">
+    <b style="color:var(--tau)">💡 DCA Plan Summary:</b> Investing $${weekly}/week for ${months} months, you'd put in <b>$${totalInvested.toLocaleString()}</b> total. In the <b>median scenario</b>, your portfolio would be worth <b>$${medResult.value>=1000?Math.round(medResult.value).toLocaleString():medResult.value.toFixed(0)}</b> (${medResult.roi>=0?'+':''}${medResult.roi.toFixed(0)}%), holding <b>${medResult.tokens.toFixed(1)} TAO</b>. In the worst 5%, it'd be $${dcaCalc(endPrices.p5).value.toFixed(0)}. In the best 5%, $${dcaCalc(endPrices.p95).value>=1000?Math.round(dcaCalc(endPrices.p95).value).toLocaleString():dcaCalc(endPrices.p95).value.toFixed(0)}.
+  </div>`;
+  
+  g('dcaPlanResults').innerHTML=html;
+};
+
+// ============================================================
+//  SUBNET ALPHA vs TAO ANALYZER
+// ============================================================
+function calcSubnetAlpha(){
+  const curShare=parseFloat(g('snCurShare').value)||1;
+  const futShare=parseFloat(g('snFutShare').value)||3;
+  const stakeAmt=parseFloat(g('snStakeAmt').value)||10;
+  const months=parseInt(g('snMonths').value)||12;
+  const price=parseFloat(g('priceInput').value)||185;
+  
+  // Simplified model: alpha price scales roughly with emission share
+  // If subnet goes from 1% to 3% of emissions, alpha appreciates ~3x relative to TAO
+  const shareGrowth=futShare/curShare;
+  
+  // Daily emissions to subnet
+  const dailyTaoEmissions=3600;
+  const curDailyToSubnet=dailyTaoEmissions*(curShare/100);
+  const futDailyToSubnet=dailyTaoEmissions*(futShare/100);
+  
+  // Alpha appreciation (simplified: proportional to emission share growth)
+  const alphaMultiplier=shareGrowth;
+  const taoValueStart=stakeAmt*price;
+  const alphaValueEnd=taoValueStart*alphaMultiplier;
+  const justHoldTaoValue=taoValueStart; // assume TAO flat for comparison
+  const alphaOutperformance=((alphaMultiplier-1)*100);
+  
+  let html=`<div class="stats" style="margin-top:10px;margin-bottom:12px">
+    <div class="stat"><div class="k">Share Growth</div><div class="v" style="color:var(--tau)">${curShare}% → ${futShare}%</div><div class="s">${shareGrowth.toFixed(1)}x increase</div></div>
+    <div class="stat"><div class="k">Alpha Multiplier</div><div class="v" style="color:var(--green)">${alphaMultiplier.toFixed(1)}x</div><div class="s">vs holding TAO</div></div>
+    <div class="stat"><div class="k">Daily Emissions</div><div class="v" style="color:var(--amber)">${curDailyToSubnet.toFixed(1)} τ</div><div class="s">→ ${futDailyToSubnet.toFixed(1)} τ/day</div></div>
+    <div class="stat"><div class="k">Staked Value</div><div class="v" style="color:var(--tau)">$${taoValueStart.toFixed(0)}</div><div class="s">→ $${alphaValueEnd.toFixed(0)}</div></div>
+  </div>`;
+  
+  html+=`<div class="note" style="background:var(--green-dim);border-left:3px solid var(--green)">
+    <b style="color:var(--green)">💡 Alpha vs TAO:</b> If this subnet grows from <b>${curShare}%</b> to <b>${futShare}%</b> of total emissions over ${months} months, staking ${stakeAmt} TAO as alpha would be worth roughly <b>$${alphaValueEnd.toFixed(0)}</b> — a <b>+${alphaOutperformance.toFixed(0)}%</b> outperformance vs just holding TAO (assuming TAO price stays flat). ${shareGrowth>2?'This is a high-conviction bet — you\'re expecting this subnet to significantly grow its importance in the network.':'A modest growth assumption — achievable if the subnet delivers real utility.'} <b>Risk:</b> If the subnet loses emission share (gets deregistered, competition), alpha can go to near zero. Subnet alpha is significantly riskier than holding TAO itself.
+  </div>`;
+  
+  html+=`<div class="note" style="margin-top:8px">
+    <b>📖 How emission share works:</b> Bittensor distributes 3,600 TAO/day across all 128 subnets. Each subnet's share is determined by how much TAO is staked to it (via dTAO). More stake = more emissions = higher alpha price. When you stake TAO to a subnet, you receive "alpha" — the subnet's own token. If the subnet attracts more stakers, your alpha appreciates. If stakers leave, it depreciates. It's like owning equity in a startup within the Bittensor ecosystem.
+  </div>`;
+  
+  g('snAlphaResults').innerHTML=html;
+};
+
+// ============================================================
+//  INIT ALL TOOLS
+// ============================================================
+function initTools(){
+  calcPositionSize();
+  buildCorrelation();
+  drawEmissions();
+  calcStaking();
+  calcDcaPlan();
+  calcSubnetAlpha();
+};
+
+// ============================================================
+//  MODE SWITCHING
+// ============================================================
+function switchMode(mode){
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  g('modeBtn-'+mode).classList.add('active');
+  g('mode-mc').style.display=mode==='mc'?'block':'none';
+  g('mode-bt').style.display=mode==='bt'?'block':'none';
+  g('mode-dm').style.display=mode==='dm'?'block':'none';
+  if(mode==='bt'){updateBtUI();setTimeout(drawHistory,50);}
+  if(mode==='dm'){dmRefresh();}
+};
+
+function toggleToolbox(){
+  const header=g('toolboxHeader');
+  const body=g('toolboxBody');
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open');
+  header.classList.toggle('open');
+  if(!isOpen){
+    // Initialize tools on first open
+    calcPositionSize();buildCorrelation();drawEmissions();calcStaking();calcDcaPlan();calcSubnetAlpha();
+  }
+};
+
+// ============================================================
+//  BACKTESTING ENGINE
+// ============================================================
+// Weekly price data derived from monthly (interpolated)
+function getWeeklyPrices(startDate){
+  const data=TAO_HISTORY;
+  const startIdx=data.findIndex(d=>d.date>=startDate);
+  if(startIdx<0)return[];
+  const slice=data.slice(startIdx);
+  // Interpolate to weekly
+  const weekly=[];
+  for(let i=0;i<slice.length-1;i++){
+    const p1=slice[i].price,p2=slice[i+1].price;
+    for(let w=0;w<4;w++){
+      const frac=w/4;
+      const price=p1+(p2-p1)*frac;
+      const monthNum=i*4+w;
+      weekly.push({week:monthNum,price:price,date:slice[i].date});
+    }
+  }
+  weekly.push({week:(slice.length-1)*4,price:slice[slice.length-1].price,date:slice[slice.length-1].date});
+  return weekly;
+};
+
+function updateBtUI(){
+  const strat=g('btStrategy').value;
+  let html='';
+  const explain={
+    dca:{
+      params:`<div class="row"><div class="col"><div class="lbl">Weekly Investment ($)</div><input type="number" id="btDcaAmt" value="100" min="10" step="10"></div></div>`,
+      text:`<b>Dollar Cost Averaging (DCA)</b> means investing a fixed dollar amount at regular intervals regardless of price. If the price is high, you buy fewer tokens. If it's low, you buy more. Over time, this averages out your cost basis and removes the stress of timing the market. It's the simplest and most popular strategy for volatile assets like crypto.`
+    },
+    lump:{
+      params:`<div class="row"><div class="col"><div class="lbl">Investment Amount ($)</div><input type="number" id="btLumpAmt" value="5000" min="100" step="100"></div></div>`,
+      text:`<b>Lump Sum</b> means investing everything at once on your start date. This is the "just buy and hold" approach. In bull markets, lump sum often beats DCA because your entire capital is exposed to upside from day one. In bear markets, it can mean buying the top and watching your investment shrink.`
+    },
+    buydip:{
+      params:`<div class="row"><div class="col"><div class="lbl">Dip Threshold (%)</div><input type="number" id="btDipPct" value="20" min="5" max="60" step="5"></div><div class="col"><div class="lbl">Buy Amount Per Dip ($)</div><input type="number" id="btDipAmt" value="500" min="50" step="50"></div></div><div class="note" style="margin-top:6px"><b>How it works:</b> The strategy waits for the price to drop X% from its recent high, then deploys capital. It's trying to "buy low" systematically instead of emotionally.</div>`,
+      text:`<b>Buy the Dip</b> waits until the price drops a certain percentage from its recent peak, then buys. The idea is to accumulate at discounted prices. The risk is that in a sustained bear market, you keep buying dips that keep dipping — or in a bull market, the dip never comes and you sit on the sidelines.`
+    },
+    ma:{
+      params:`<div class="row"><div class="col"><div class="lbl">Fast MA (weeks)</div><input type="number" id="btMaFast" value="4" min="2" max="12"></div><div class="col"><div class="lbl">Slow MA (weeks)</div><input type="number" id="btMaSlow" value="12" min="4" max="26"></div></div><div class="row"><div class="col"><div class="lbl">Capital ($)</div><input type="number" id="btMaCapital" value="5000" min="100" step="100"></div></div><div class="note" style="margin-top:6px"><b>How it works:</b> When the fast average crosses ABOVE the slow average, the strategy buys (momentum is turning bullish). When it crosses BELOW, it sells (momentum turning bearish). This tries to ride trends and avoid crashes.</div>`,
+      text:`<b>Moving Average Crossover</b> is a trend-following strategy. It uses two moving averages — a fast one (short-term trend) and a slow one (long-term trend). When the fast crosses above the slow, it signals an uptrend and you buy. When it crosses below, you sell. It's not about catching the bottom or top — it's about riding the middle of trends. The downside: in choppy sideways markets, you get "whipsawed" with frequent false signals.`
+    }
+  };
+  g('btParams').innerHTML=explain[strat].params;
+  g('btExplain').innerHTML=`<div style="font-size:12px;color:var(--text2);line-height:1.7">${explain[strat].text}</div>`;
+};
+
+function runBacktest(){
+  const strat=g('btStrategy').value;
+  const startDate=g('btStart').value;
+  const prices=getWeeklyPrices(startDate);
+  if(prices.length<4){alert('Not enough data for this date range');return;}
+  
+  let result;
+  if(strat==='dca') result=btDCA(prices);
+  else if(strat==='lump') result=btLump(prices);
+  else if(strat==='buydip') result=btBuyDip(prices);
+  else if(strat==='ma') result=btMA(prices);
+  
+  renderBacktest(result,prices,strat);
+};
+
+function btDCA(prices){
+  const amt=parseFloat(g('btDcaAmt').value)||100;
+  let totalInvested=0,tokens=0;
+  const trades=[],portfolio=[];
+  prices.forEach((p,i)=>{
+    totalInvested+=amt;
+    const bought=amt/p.price;
+    tokens+=bought;
+    trades.push({week:i,action:'BUY',amount:amt,price:p.price,tokens:bought,date:p.date});
+    portfolio.push({week:i,value:tokens*p.price,invested:totalInvested,price:p.price});
+  });
+  return{trades,portfolio,totalInvested,finalTokens:tokens,finalValue:tokens*prices[prices.length-1].price};
+};
+
+function btLump(prices){
+  const amt=parseFloat(g('btLumpAmt').value)||5000;
+  const tokens=amt/prices[0].price;
+  const trades=[{week:0,action:'BUY',amount:amt,price:prices[0].price,tokens:tokens,date:prices[0].date}];
+  const portfolio=prices.map((p,i)=>({week:i,value:tokens*p.price,invested:amt,price:p.price}));
+  return{trades,portfolio,totalInvested:amt,finalTokens:tokens,finalValue:tokens*prices[prices.length-1].price};
+};
+
+function btBuyDip(prices){
+  const dipPct=parseFloat(g('btDipPct').value)||20;
+  const dipAmt=parseFloat(g('btDipAmt').value)||500;
+  let totalInvested=0,tokens=0,peak=prices[0].price;
+  const trades=[],portfolio=[];
+  prices.forEach((p,i)=>{
+    if(p.price>peak)peak=p.price;
+    const drawdown=((peak-p.price)/peak)*100;
+    if(drawdown>=dipPct){
+      totalInvested+=dipAmt;
+      const bought=dipAmt/p.price;
+      tokens+=bought;
+      trades.push({week:i,action:'BUY DIP',amount:dipAmt,price:p.price,tokens:bought,date:p.date,drawdown:drawdown.toFixed(1)});
+      peak=p.price; // reset peak after buy
+    }
+    portfolio.push({week:i,value:tokens*p.price,invested:totalInvested,price:p.price});
+  });
+  return{trades,portfolio,totalInvested,finalTokens:tokens,finalValue:tokens*prices[prices.length-1].price};
+};
+
+function btMA(prices){
+  const fast=parseInt(g('btMaFast').value)||4;
+  const slow=parseInt(g('btMaSlow').value)||12;
+  const capital=parseFloat(g('btMaCapital').value)||5000;
+  let cash=capital,tokens=0,inPosition=false;
+  const trades=[],portfolio=[];
+  
+  prices.forEach((p,i)=>{
+    const fastMA=i>=fast-1?prices.slice(i-fast+1,i+1).reduce((s,x)=>s+x.price,0)/fast:null;
+    const slowMA=i>=slow-1?prices.slice(i-slow+1,i+1).reduce((s,x)=>s+x.price,0)/slow:null;
+    
+    if(fastMA&&slowMA){
+      const prevFast=i>=fast?prices.slice(i-fast,i).reduce((s,x)=>s+x.price,0)/fast:null;
+      const prevSlow=i>=slow?prices.slice(i-slow,i).reduce((s,x)=>s+x.price,0)/slow:null;
+      
+      if(prevFast&&prevSlow){
+        // Golden cross: buy
+        if(prevFast<=prevSlow&&fastMA>slowMA&&!inPosition&&cash>0){
+          tokens=cash/p.price;
+          trades.push({week:i,action:'BUY',amount:cash,price:p.price,tokens:tokens,date:p.date,signal:'Golden Cross'});
+          cash=0;inPosition=true;
+        }
+        // Death cross: sell
+        if(prevFast>=prevSlow&&fastMA<slowMA&&inPosition&&tokens>0){
+          cash=tokens*p.price;
+          trades.push({week:i,action:'SELL',amount:cash,price:p.price,tokens:tokens,date:p.date,signal:'Death Cross'});
+          tokens=0;inPosition=false;
+        }
+      }
+    }
+    const value=cash+tokens*p.price;
+    portfolio.push({week:i,value:value,invested:capital,price:p.price});
+  });
+  return{trades,portfolio,totalInvested:capital,finalTokens:tokens,finalValue:cash+tokens*prices[prices.length-1].price};
+};
+
+function renderBacktest(result,prices,strat){
+  g('btResultsCard').style.display='block';
+  g('btTradesCard').style.display='block';
+  g('btCompCard').style.display='block';
+  
+  const{trades,portfolio,totalInvested,finalTokens,finalValue}=result;
+  const roi=totalInvested>0?((finalValue-totalInvested)/totalInvested*100):0;
+  const holdTokens=totalInvested/prices[0].price;
+  const holdValue=holdTokens*prices[prices.length-1].price;
+  const holdRoi=((holdValue-totalInvested)/totalInvested*100);
+  
+  // Max drawdown
+  let peak=0,maxDD=0;
+  portfolio.forEach(p=>{if(p.value>peak)peak=p.value;const dd=(peak-p.value)/peak*100;if(dd>maxDD)maxDD=dd;});
+  
+  const weeks=portfolio.length;
+  const months=(weeks/4).toFixed(0);
+  
+  // Stats
+  g('btStats').innerHTML=`
+    <div class="stat"><div class="k">Invested</div><div class="v" style="color:var(--text)">$${totalInvested.toFixed(0)}</div><div class="s">${trades.filter(t=>t.action.includes('BUY')).length} buys</div></div>
+    <div class="stat"><div class="k">Final Value</div><div class="v" style="color:${finalValue>=totalInvested?'var(--green)':'var(--red)'}">$${finalValue.toFixed(0)}</div><div class="s">${roi>=0?'+':''}${roi.toFixed(1)}% ROI</div></div>
+    <div class="stat"><div class="k">TAO Held</div><div class="v" style="color:var(--tau)">${finalTokens.toFixed(2)}</div><div class="s">tokens</div></div>
+    <div class="stat"><div class="k">Max Drawdown</div><div class="v" style="color:var(--red)">${maxDD.toFixed(1)}%</div><div class="s">Worst peak-to-trough</div></div>
+    <div class="stat"><div class="k">Avg Cost</div><div class="v" style="color:var(--amber)">$${finalTokens>0?(totalInvested/finalTokens).toFixed(2):'N/A'}</div><div class="s">per TAO</div></div>`;
+  
+  // Draw chart
+  drawBtChart(portfolio,trades,prices);
+  
+  // Legend
+  g('btLegend').innerHTML=`
+    <span><span class="dot" style="background:var(--tau)"></span>Portfolio Value</span>
+    <span><span class="dot" style="background:var(--text3)"></span>Total Invested</span>
+    <span><span class="dot" style="background:var(--amber)"></span>TAO Price (scaled)</span>
+    <span><span class="dot" style="background:var(--green)"></span>Buy</span>
+    <span><span class="dot" style="background:var(--red)"></span>Sell</span>`;
+  
+  // Insight
+  g('btInsight').innerHTML=`
+    <div class="note" style="margin-top:12px;background:var(--tau-dim);border-left:3px solid var(--tau)">
+      <b style="color:var(--tau)">💡 Result:</b> Over ${months} months with the <b>${{dca:'DCA',lump:'Lump Sum',buydip:'Buy the Dip',ma:'MA Crossover'}[strat]}</b> strategy, you would have invested <b>$${totalInvested.toFixed(0)}</b> and your portfolio would be worth <b>$${finalValue.toFixed(0)}</b> — a <b>${roi>=0?'+':''}${roi.toFixed(1)}%</b> return. ${maxDD>40?`However, you would have experienced a gut-wrenching <b>${maxDD.toFixed(0)}%</b> drawdown at the worst point — could you have held through that?`:`The maximum drawdown was ${maxDD.toFixed(0)}% — ${maxDD>20?'significant but manageable for crypto':'relatively mild for a crypto asset'}.`}
+    </div>`;
+  
+  // Trade log
+  let logHTML='<div style="font-size:9px;color:var(--text3);margin-bottom:6px">Showing all ${trades.length} trades</div>';
+  trades.forEach((t,i)=>{
+    const color=t.action.includes('BUY')?'var(--green)':'var(--red)';
+    logHTML+=`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:10px;align-items:center">
+      <span style="color:${color};font-weight:700;min-width:55px">${t.action}</span>
+      <span style="color:var(--text3);min-width:55px">${t.date}</span>
+      <span style="color:var(--text2)">$${t.amount.toFixed(0)} @ $${t.price.toFixed(2)}</span>
+      <span style="color:var(--tau);margin-left:auto">${t.tokens.toFixed(3)} TAO</span>
+      ${t.signal?`<span style="font-size:8px;color:var(--amber)">${t.signal}</span>`:''}
+      ${t.drawdown?`<span style="font-size:8px;color:var(--red)">-${t.drawdown}%</span>`:''}
+    </div>`;
+  });
+  g('btTradeLog').innerHTML=logHTML;
+  
+  // Comparison
+  const stratLabel={dca:'DCA',lump:'Lump Sum',buydip:'Buy the Dip',ma:'MA Crossover'}[strat];
+  const winner=roi>holdRoi?stratLabel:'Buy & Hold';
+  const diff=Math.abs(roi-holdRoi).toFixed(1);
+  g('btCompContent').innerHTML=`
+    <div class="stats" style="margin-bottom:14px">
+      <div class="stat" style="border:1.5px solid ${roi>=holdRoi?'var(--tau)':'var(--border)'}; border-radius:8px;padding:12px">
+        <div class="k">${stratLabel}</div>
+        <div class="v" style="color:${roi>=0?'var(--green)':'var(--red)'}">${roi>=0?'+':''}${roi.toFixed(1)}%</div>
+        <div class="s">$${totalInvested.toFixed(0)} → $${finalValue.toFixed(0)}</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:16px;color:var(--text3)">vs</div>
+      <div class="stat" style="border:1.5px solid ${holdRoi>=roi?'var(--tau)':'var(--border)'}; border-radius:8px;padding:12px">
+        <div class="k">Buy & Hold</div>
+        <div class="v" style="color:${holdRoi>=0?'var(--green)':'var(--red)'}">${holdRoi>=0?'+':''}${holdRoi.toFixed(1)}%</div>
+        <div class="s">$${totalInvested.toFixed(0)} → $${holdValue.toFixed(0)}</div>
+      </div>
+    </div>
+    <div class="note" style="background:var(--green-dim);border-left:3px solid var(--green)">
+      <b style="color:var(--green)">🏆 Winner: ${winner}</b> by <b>${diff}%</b>. ${roi>holdRoi?`The ${stratLabel} strategy outperformed simply buying and holding. ${strat==='dca'?'DCA\'s advantage comes from buying more tokens when prices are low, lowering your average cost.':strat==='buydip'?'Buying dips let you accumulate at lower prices, but it required patience and cash on hand.':strat==='ma'?'The MA strategy avoided some of the worst drawdowns by selling during downtrends.':''}`:
+      `Buy & Hold beat the ${stratLabel} strategy in this period. ${strat==='dca'?'In a strong uptrend, DCA underperforms because you keep buying at higher prices instead of being fully invested early.':strat==='buydip'?'The dips didn\'t come often enough, or the rebounds were too quick, leaving cash uninvested.':strat==='ma'?'The MA signals produced whipsaws in choppy markets, causing you to sell low and buy back higher.':''}`}
+    </div>`;
+  
+  g('btResultsCard').scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+function drawBtChart(portfolio,trades,prices){
+  const canvas=g('btCanvas');
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*2;canvas.height=rect.height*2;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(2,2);
+  const W=rect.width,H=rect.height;
+  const LEFT=55,RIGHT=15,TOP=15,BOT=25;
+  const cs=getComputedStyle(document.documentElement);
+  
+  const values=portfolio.map(p=>p.value);
+  const invested=portfolio.map(p=>p.invested);
+  const allVals=[...values,...invested];
+  const yMin=Math.min(...allVals)*0.9||0;
+  const yMax=Math.max(...allVals)*1.1||100;
+  const xScale=i=>LEFT+(i/(portfolio.length-1))*(W-LEFT-RIGHT);
+  const yScale=v=>TOP+((yMax-v)/(yMax-yMin))*(H-TOP-BOT);
+  
+  // Grid
+  ctx.strokeStyle=cs.getPropertyValue('--border').trim();ctx.lineWidth=0.3;
+  ctx.fillStyle=cs.getPropertyValue('--text3').trim();ctx.font='8px JetBrains Mono';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){
+    const v=yMin+(yMax-yMin)*(i/4);
+    ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(LEFT,yScale(v));ctx.lineTo(W-RIGHT,yScale(v));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillText('$'+Math.round(v),LEFT-4,yScale(v)+3);
+  }
+  
+  // Invested line (gray dashed)
+  ctx.strokeStyle=cs.getPropertyValue('--text3').trim();ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.beginPath();
+  portfolio.forEach((p,i)=>{const x=xScale(i),y=yScale(p.invested);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.stroke();ctx.setLineDash([]);
+  
+  // Portfolio value line
+  ctx.strokeStyle=cs.getPropertyValue('--tau').trim();ctx.lineWidth=2;ctx.beginPath();
+  portfolio.forEach((p,i)=>{const x=xScale(i),y=yScale(p.value);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.stroke();
+  
+  // Fill under portfolio
+  ctx.globalAlpha=0.08;ctx.fillStyle=cs.getPropertyValue('--tau').trim();
+  ctx.beginPath();ctx.moveTo(xScale(0),yScale(portfolio[0].value));
+  portfolio.forEach((p,i)=>ctx.lineTo(xScale(i),yScale(p.value)));
+  ctx.lineTo(xScale(portfolio.length-1),H-BOT);ctx.lineTo(xScale(0),H-BOT);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;
+  
+  // Price overlay (scaled to chart)
+  const priceMin=Math.min(...prices.map(p=>p.price));
+  const priceMax=Math.max(...prices.map(p=>p.price));
+  ctx.strokeStyle=cs.getPropertyValue('--amber').trim();ctx.lineWidth=1;ctx.globalAlpha=0.4;ctx.setLineDash([3,2]);ctx.beginPath();
+  prices.forEach((p,i)=>{
+    if(i>=portfolio.length)return;
+    const scaledY=TOP+((priceMax-p.price)/(priceMax-priceMin))*(H-TOP-BOT);
+    i===0?ctx.moveTo(xScale(i),scaledY):ctx.lineTo(xScale(i),scaledY);
+  });
+  ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+  
+  // Trade markers
+  trades.forEach(t=>{
+    if(t.week>=portfolio.length)return;
+    const x=xScale(t.week);
+    const y=yScale(portfolio[t.week].value);
+    const isBuy=t.action.includes('BUY');
+    ctx.beginPath();
+    if(isBuy){
+      ctx.moveTo(x,y+6);ctx.lineTo(x-4,y+12);ctx.lineTo(x+4,y+12);ctx.closePath();
+      ctx.fillStyle=cs.getPropertyValue('--green').trim();
+    } else {
+      ctx.moveTo(x,y-6);ctx.lineTo(x-4,y-12);ctx.lineTo(x+4,y-12);ctx.closePath();
+      ctx.fillStyle=cs.getPropertyValue('--red').trim();
+    }
+    ctx.fill();
+  });
+};
+
+// ============================================================
 //  HISTORICAL PRICE DATA & EVENTS
 // ============================================================
-const TAO_HISTORY = [
+const DEFAULT_TAO_HISTORY = [
   // [date, price] — monthly data points from launch to present
   ['2023-03','93'],['2023-04','47'],['2023-05','31'],['2023-06','50'],['2023-07','86'],
   ['2023-08','60'],['2023-09','55'],['2023-10','54'],['2023-11','89'],['2023-12','379'],
@@ -976,7 +2043,7 @@ const TAO_HISTORY = [
   ['2026-01','223'],['2026-02','180'],['2026-03','185'],
 ].map(d=>({date:d[0],price:parseFloat(d[1])}));
 
-const TAO_EVENTS = [
+const DEFAULT_TAO_EVENTS = [
   {date:'2023-03',price:93,label:'TAO Launch',desc:'Bittensor launches on exchanges at ~$93. Fair launch, no ICO.',type:'launch',impact:'neutral'},
   {date:'2023-05',price:31,label:'All-Time Low',desc:'TAO hits ATL of $30.83 amid low awareness and early bear market conditions.',type:'bear',impact:'negative'},
   {date:'2023-11',price:89,label:'AI Narrative Ignites',desc:'ChatGPT anniversary + AI hype cycle begins. TAO catches the wave as a decentralized AI play.',type:'bull',impact:'positive'},
@@ -996,6 +2063,180 @@ const TAO_EVENTS = [
   {date:'2026-01',price:223,label:'Post-Halving Drift',desc:'Market digests halving. Grayscale files for Bittensor Trust. TAO consolidates in $170-$235 range.',type:'neutral',impact:'neutral'},
   {date:'2026-03',price:185,label:'Current Price ~$185',desc:'TAO at ~$185. 128 subnets active. Post-halving supply squeeze ongoing. Institutional products pending.',type:'neutral',impact:'neutral'},
 ];
+
+// Load from localStorage or use defaults
+let TAO_HISTORY = JSON.parse(localStorage.getItem('taomc-history')) || DEFAULT_TAO_HISTORY.slice();
+let TAO_EVENTS = JSON.parse(localStorage.getItem('taomc-events')) || DEFAULT_TAO_EVENTS.slice();
+
+function dmSaveData(){
+  localStorage.setItem('taomc-history',JSON.stringify(TAO_HISTORY));
+  localStorage.setItem('taomc-events',JSON.stringify(TAO_EVENTS));
+};
+
+function dmRefresh(){
+  // Freshness warning
+  const lastDate=TAO_HISTORY.length?TAO_HISTORY[TAO_HISTORY.length-1].date:'unknown';
+  const lastPrice=TAO_HISTORY.length?TAO_HISTORY[TAO_HISTORY.length-1].price:'--';
+  const now=new Date();
+  const curMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const isStale=lastDate<curMonth;
+  
+  g('dmFreshness').innerHTML=`
+    <div class="stats">
+      <div class="stat"><div class="k">Last Data Point</div><div class="v" style="color:${isStale?'var(--amber)':'var(--green)'}">${lastDate}</div><div class="s">$${lastPrice}</div></div>
+      <div class="stat"><div class="k">Current Month</div><div class="v" style="color:var(--tau)">${curMonth}</div></div>
+      <div class="stat"><div class="k">Price Points</div><div class="v" style="color:var(--text)">${TAO_HISTORY.length}</div></div>
+      <div class="stat"><div class="k">Events</div><div class="v" style="color:var(--text)">${TAO_EVENTS.length}</div></div>
+    </div>
+    ${isStale?`<div class="note" style="margin-top:10px;background:var(--amber-dim);border-left:3px solid var(--amber)">
+      <b style="color:var(--amber)">⚠️ Data may be stale!</b> Your last price point is from <b>${lastDate}</b> but the current month is <b>${curMonth}</b>. Tap <b>"Fetch Current TAO Price"</b> below to add the latest data point, or add it manually.
+    </div>`:`<div class="note" style="margin-top:10px;background:var(--green-dim);border-left:3px solid var(--green)">
+      <b style="color:var(--green)">✅ Data is current!</b> Last data point is from this month (${lastDate}) at $${lastPrice}.
+    </div>`}`;
+  
+  // Price list
+  g('dmPriceCount').textContent=TAO_HISTORY.length;
+  let priceHTML='';
+  TAO_HISTORY.slice().reverse().forEach((p,i)=>{
+    const idx=TAO_HISTORY.length-1-i;
+    priceHTML+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">
+      <span style="color:var(--text2);font-family:'JetBrains Mono',monospace">${p.date}</span>
+      <span style="color:var(--tau);font-weight:700;font-family:'JetBrains Mono',monospace">$${p.price}</span>
+      <button class="btn btn-ghost" style="padding:2px 8px;font-size:9px;min-height:auto;color:var(--red)" onclick="dmDeletePrice(${idx})">×</button>
+    </div>`;
+  });
+  g('dmPriceList').innerHTML=priceHTML||'<div style="font-size:11px;color:var(--text3);padding:10px">No price data</div>';
+  
+  // Event list
+  g('dmEventCount').textContent=TAO_EVENTS.length;
+  let evtHTML='';
+  TAO_EVENTS.slice().reverse().forEach((ev,i)=>{
+    const idx=TAO_EVENTS.length-1-i;
+    const color=ev.impact==='positive'?'var(--green)':ev.impact==='negative'?'var(--red)':'var(--amber)';
+    evtHTML+=`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:center;font-size:10px">
+      <span style="color:${color};font-weight:700;min-width:55px;font-family:'JetBrains Mono',monospace">${ev.date}</span>
+      <span style="color:var(--text);flex:1">${ev.label}</span>
+      <span style="color:var(--text3);font-family:'JetBrains Mono',monospace">$${ev.price}</span>
+      <button class="btn btn-ghost" style="padding:2px 8px;font-size:9px;min-height:auto;color:var(--red)" onclick="dmDeleteEvent(${idx})">×</button>
+    </div>`;
+  });
+  g('dmEventList').innerHTML=evtHTML||'<div style="font-size:11px;color:var(--text3);padding:10px">No events</div>';
+};
+
+async function dmFetchAndAdd(){
+  const status=g('dmFetchStatus');
+  status.innerHTML='<span style="color:var(--amber)">⏳ Fetching from CoinGecko...</span>';
+  try{
+    const resp=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bittensor&vs_currencies=usd');
+    if(!resp.ok)throw new Error('API '+resp.status);
+    const data=await resp.json();
+    if(!data.bittensor||!data.bittensor.usd)throw new Error('No TAO data returned');
+    const price=data.bittensor.usd;
+    const now=new Date();
+    const month=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    
+    // Check if this month already exists
+    const existing=TAO_HISTORY.findIndex(h=>h.date===month);
+    if(existing>=0){
+      TAO_HISTORY[existing].price=price;
+      status.innerHTML=`<span style="color:var(--green)">✅ Updated ${month} to $${price.toFixed(2)}</span>`;
+    }else{
+      TAO_HISTORY.push({date:month,price:price});
+      TAO_HISTORY.sort((a,b)=>a.date.localeCompare(b.date));
+      status.innerHTML=`<span style="color:var(--green)">✅ Added ${month} at $${price.toFixed(2)}</span>`;
+    }
+    dmSaveData();
+    dmRefresh();
+    setTimeout(drawHistory,100);
+  }catch(err){
+    status.innerHTML=`<span style="color:var(--red)">❌ Failed: ${err.message}</span>`;
+  }
+};
+
+function dmAddPrice(){
+  const date=g('dmPriceDate').value.trim();
+  const price=parseFloat(g('dmPriceVal').value);
+  if(!date.match(/^\d{4}-\d{2}$/)){alert('Date must be YYYY-MM format (e.g. 2026-04)');return;}
+  if(!price||price<=0){alert('Enter a valid price');return;}
+  
+  const existing=TAO_HISTORY.findIndex(h=>h.date===date);
+  if(existing>=0){
+    TAO_HISTORY[existing].price=price;
+  }else{
+    TAO_HISTORY.push({date:date,price:price});
+    TAO_HISTORY.sort((a,b)=>a.date.localeCompare(b.date));
+  }
+  dmSaveData();
+  dmRefresh();
+  setTimeout(drawHistory,100);
+  g('dmPriceDate').value='';
+  g('dmPriceVal').value='';
+};
+
+function dmAddEvent(){
+  const date=g('dmEvtDate').value.trim();
+  const price=parseFloat(g('dmEvtPrice').value);
+  const label=g('dmEvtLabel').value.trim();
+  const desc=g('dmEvtDesc').value.trim();
+  const impact=g('dmEvtImpact').value;
+  const type=g('dmEvtType').value;
+  if(!date.match(/^\d{4}-\d{2}$/)){alert('Date must be YYYY-MM format');return;}
+  if(!price||!label){alert('Price and label are required');return;}
+  
+  TAO_EVENTS.push({date,price,label,desc:desc||label,type,impact});
+  TAO_EVENTS.sort((a,b)=>a.date.localeCompare(b.date));
+  dmSaveData();
+  dmRefresh();
+  setTimeout(drawHistory,100);
+  g('dmEvtDate').value='';g('dmEvtPrice').value='';g('dmEvtLabel').value='';g('dmEvtDesc').value='';
+};
+
+function dmDeletePrice(idx){
+  if(!confirm('Delete price point for '+TAO_HISTORY[idx].date+'?'))return;
+  TAO_HISTORY.splice(idx,1);
+  dmSaveData();dmRefresh();setTimeout(drawHistory,100);
+};
+
+function dmDeleteEvent(idx){
+  if(!confirm('Delete event "'+TAO_EVENTS[idx].label+'"?'))return;
+  TAO_EVENTS.splice(idx,1);
+  dmSaveData();dmRefresh();setTimeout(drawHistory,100);
+};
+
+function dmExport(){
+  const data=JSON.stringify({history:TAO_HISTORY,events:TAO_EVENTS,exported:new Date().toISOString()},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='tao-data-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+};
+
+function dmImport(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.history&&Array.isArray(data.history)){TAO_HISTORY=data.history;}
+      if(data.events&&Array.isArray(data.events)){TAO_EVENTS=data.events;}
+      dmSaveData();dmRefresh();setTimeout(drawHistory,100);
+      alert('Imported '+TAO_HISTORY.length+' price points and '+TAO_EVENTS.length+' events');
+    }catch(err){alert('Invalid JSON file: '+err.message);}
+  };
+  reader.readAsText(file);
+  event.target.value='';
+};
+
+function dmReset(){
+  if(!confirm('Reset ALL data to the built-in defaults? Your custom additions will be lost.'))return;
+  TAO_HISTORY=DEFAULT_TAO_HISTORY.slice();
+  TAO_EVENTS=DEFAULT_TAO_EVENTS.slice();
+  localStorage.removeItem('taomc-history');
+  localStorage.removeItem('taomc-events');
+  dmRefresh();setTimeout(drawHistory,100);
+};
 
 function drawHistory(){
   const canvas=g('histCanvas');
@@ -1088,9 +2329,10 @@ toggleTheme=function(){origToggle();setTimeout(drawHistory,50)};
 // ============================================================
 buildScenarios();
 updateUI();
+updateBtUI();
 
-// Auto-run on load
-setTimeout(runSimulation,300);
+// Auto-run MC on load
+setTimeout(function(){runSimulation();},300);
 
 // PWA
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
